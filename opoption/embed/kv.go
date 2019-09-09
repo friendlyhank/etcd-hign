@@ -2,11 +2,8 @@ package embed
 
 import (
 	"context"
-	"fmt"
 	"net"
 )
-
-
 
 type KV interface{
 	Put(ctx context.Context,key,val string,opts ...OpOption)(*PutResponse, error)
@@ -25,7 +22,6 @@ type Watcher interface {
 type PutResponse struct{}
 type GetResponse struct{}
 type DeleteResponse struct{}
-
 
 /*总分总形式，方法聚合有可以分离
 Put、Get、Delete都是用Do,结构返回统一用OpResponse,又可以获取具体的，如Put put := op.Put()
@@ -60,7 +56,6 @@ type Client struct{
 	Conn *net.Conn
 }
 
-
 /*提供入口,api接口
 */
 func NewKV(c *Client) KV {
@@ -82,7 +77,6 @@ func (kv *Kv) Put(ctx context.Context, key, val string, opts ...OpOption)(*PutRe
 	op.applyOpts(opts)
 
 	r,err := kv.Do(ctx,op)
-
 	return r.put,err
 }
 
@@ -94,7 +88,6 @@ func (kv *Kv)Do(ctx context.Context, op Op) (OpResponse, error){
 	//判断类型
 	switch op.t {
 	case tPut:
-		fmt.Println(op.LeaseID)
 		return OpResponse{put:&PutResponse{}},nil
 	}
 

@@ -29,7 +29,6 @@ func WithLease(leaseID int64) OpOption{
 	return  func(o *Op){o.LeaseID = leaseID}
 }
 
-
 func (o *Op)applyOpts(ops []OpOption){
 	fmt.Println(o)
 	for _,opOption := range ops{
