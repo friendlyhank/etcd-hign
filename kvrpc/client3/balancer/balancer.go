@@ -18,6 +18,9 @@ func (b *builder)Build(cc balancer.ClientConn, opts balancer.BuildOptions) balan
 	return nil
 }
 
-func (b *builder)Name() string{
-	return nil
+func (b *builder)Name() string{return b.cfg.Name}
+
+
+type baseBalancer struct{
+
 }
