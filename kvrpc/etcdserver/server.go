@@ -1,0 +1,5 @@
+package etcdserver
+
+func Main(){
+
+}
