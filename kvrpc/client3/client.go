@@ -3,12 +3,17 @@ package client3
 import(
 	"google.golang.org/grpc"
 	"context"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 	"hank.com/etcd-3.3.12-hign/kvrpc/client3/balancer/picker"
 	"hank.com/etcd-3.3.12-hign/kvrpc/client3/balancer/resolver/endpoint"
 	"hank.com/etcd-3.3.12-hign/kvrpc/client3/balancer"
 	"sync"
 	"fmt"
 	"github.com/google/uuid"
+	"crypto/tls"
+	"time"
+	"net"
 )
 
 var(
@@ -28,6 +33,8 @@ type Client struct{
 
 	conn *grpc.ClientConn //grpc链接
 
+	cfg           Config //配置文件
+	creds         *credentials.TransportCredentials//grpc creds证书相关
 	resolverGroup *endpoint.ResolverGroup //grpc resolver build用来设置endpoint
 	mu *sync.Mutex
 
@@ -91,12 +98,101 @@ func newClient(cfg *Config)(*Client,error){
 	//获得grpc conn
 	conn, err := client.dialWithBalancer(dialEndpoint, grpc.WithBalancerName(roundRobinBalancerName))
 
+	client.conn = conn
+
 	client.KV = NewKV(client)
 
 	return client,nil
 }
 
+// dialWithBalancer dials the client's current load balanced resolver group.  The scheme of the host
+// of the provided endpoint determines the scheme used for all endpoints of the client connection.
+func (c *Client) dialWithBalancer(ep string, dopts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	_, host, _ := endpoint.ParseEndpoint(ep)
+	target := c.resolverGroup.Target(host)
+	creds := c.dialWithBalancerCreds(ep)
+	return c.dial(target, creds, dopts...)
+}
 
+// dial configures and dials any grpc balancer target.
+//客户端grpc dial拨号
+func (c *Client) dial(target string, creds *credentials.TransportCredentials, dopts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	opts,err := c.dialSetupOpts(creds,dopts...)
+	if err != nil{
+		return nil, fmt.Errorf("failed to configure dialer: %v", err)
+	}
+
+	dctx := c.ctx
+
+	//grpc dial拨号
+	conn,err  := grpc.DialContext(dctx,target,opts...)
+	if err != nil{
+		return nil,err
+	}
+	return conn,nil
+}
+
+func (c *Client) dialWithBalancerCreds(ep string) *credentials.TransportCredentials {
+	_, _, scheme := endpoint.ParseEndpoint(ep)
+	creds := c.creds
+	if len(scheme) != 0 {
+		creds = c.processCreds(scheme)
+	}
+	return creds
+}
+
+//processCreds -处理Creds
+func (c *Client) processCreds(scheme string) (creds *credentials.TransportCredentials) {
+	creds = c.creds
+	switch scheme {
+	case "unix":
+	case "http":
+		creds = nil
+	case "https", "unixs":
+		if creds != nil {
+			break
+		}
+		tlsconfig := &tls.Config{}
+		emptyCreds := credentials.NewTLS(tlsconfig)
+		creds = &emptyCreds
+	default:
+		creds = nil
+	}
+	return creds
+}
+
+// dialSetupOpts gives the dial opts prior to any authentication.
+func (c *Client) dialSetupOpts(creds *credentials.TransportCredentials, dopts ...grpc.DialOption) (opts []grpc.DialOption, err error) {
+	if c.cfg.DialKeepAliveTime > 0{
+		params := keepalive.ClientParameters{
+			Time:                c.cfg.DialKeepAliveTime,
+			Timeout:             c.cfg.DialKeepAliveTimeout,
+			PermitWithoutStream: c.cfg.PermitWithoutStream,
+		}
+		opts = append(opts, grpc.WithKeepaliveParams(params))
+	}
+	opts = append(opts, dopts...)
+
+	// Provide a net dialer that supports cancelation and timeout.
+	f := func(dialEp string, t time.Duration) (net.Conn, error) {
+		proto, host, _ := endpoint.ParseEndpoint(dialEp)
+		select {
+		case <-c.ctx.Done():
+			return nil, c.ctx.Err()
+		default:
+		}
+		dialer := &net.Dialer{Timeout: t}
+		return dialer.DialContext(c.ctx, proto, host)
+	}
+	opts = append(opts, grpc.WithDialer(f))
+
+	if creds != nil{
+		opts =append(opts,grpc.WithTransportCredentials(*creds))
+	}else{
+		opts = append(opts,grpc.WithInsecure())
+	}
+	return opts,nil
+}
 
 func toErr(ctx context.Context, err error) error {
 	if err == nil{
