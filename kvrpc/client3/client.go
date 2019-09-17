@@ -47,8 +47,27 @@ func newClient(cfg *Config)(*Client,error){
 		cfg =&Config{}
 	}
 
+	var err error
 	client := &Client{
 		callOpts:defaultCallOpts,
+	}
+
+	if cfg.MaxCallRecvMsgSize > 0 || cfg.MaxCallSendMsgSize > 0{
+		if cfg.MaxCallRecvMsgSize > 0 && cfg.MaxCallSendMsgSize > cfg.MaxCallRecvMsgSize {
+			return nil, fmt.Errorf("gRPC message recv limit (%d bytes) must be greater than send limit (%d bytes)", cfg.MaxCallRecvMsgSize, cfg.MaxCallSendMsgSize)
+		}
+		callOpts := []grpc.CallOption{
+			defaultFailFast,
+			defaultMaxCallSendMsgSize,
+			defaultMaxCallRecvMsgSize,
+		}
+		if cfg.MaxCallSendMsgSize > 0 {
+			callOpts[1] = grpc.MaxCallSendMsgSize(cfg.MaxCallSendMsgSize)
+		}
+		if cfg.MaxCallRecvMsgSize > 0 {
+			callOpts[2] = grpc.MaxCallRecvMsgSize(cfg.MaxCallRecvMsgSize)
+		}
+		client.callOpts = callOpts
 	}
 
 	// Prepare a 'endpoint://<unique-client-id>/' resolver for the client and create a endpoint target to pass
@@ -65,10 +84,19 @@ func newClient(cfg *Config)(*Client,error){
 		return nil, fmt.Errorf("at least one Endpoint must is required in client config")
 	}
 
+	dialEndpoint := cfg.Endpoints[0]
+
+	// Use a provided endpoint target so that for https:// without any tls config given, then
+	// grpc will assume the certificate server name is the endpoint host.
+	//获得grpc conn
+	conn, err := client.dialWithBalancer(dialEndpoint, grpc.WithBalancerName(roundRobinBalancerName))
+
 	client.KV = NewKV(client)
 
 	return client,nil
 }
+
+
 
 func toErr(ctx context.Context, err error) error {
 	if err == nil{
