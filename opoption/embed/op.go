@@ -1,7 +1,5 @@
 package embed
 
-import "fmt"
-
 /**
  *op etcd比较常见的写法
  *适用于可选条件，且参数比较多的时候可以用
@@ -30,7 +28,6 @@ func WithLease(leaseID int64) OpOption{
 }
 
 func (o *Op)applyOpts(ops []OpOption){
-	fmt.Println(o)
 	for _,opOption := range ops{
 		opOption(o)
 	}

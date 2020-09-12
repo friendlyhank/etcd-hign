@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"hank.com/etcd-3.3.12-hign/opoption/embed"
+	"github.com/friendlyhank/etcd-hign/opoption/embed"
 )
 
 func main(){

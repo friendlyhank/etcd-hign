@@ -1,6 +1,6 @@
 package balancer
 
-import "hank.com/etcd-3.3.12-hign/kvrpc/client3/balancer/picker"
+import "github.com/friendlyhank/etcd-hign/kvrpc/client3/balancer/picker"
 
 type Config struct{
 	// Policy configures balancer policy.

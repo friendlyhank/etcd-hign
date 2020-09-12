@@ -12,6 +12,7 @@ message PutRequest {
 }
 
 message PutResponse {
+    bytes key =1;
 }
 
 service KV {

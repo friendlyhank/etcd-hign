@@ -3,7 +3,7 @@ package client3
 import(
 	"context"
 	"google.golang.org/grpc"
-	pb "hank.com/etcd-3.3.12-hign/kvrpc/etcdserver/etcdserverpb"
+	pb "github.com/friendlyhank/etcd-hign/kvrpc/etcdserver/etcdserverpb"
 )
 
 type (
