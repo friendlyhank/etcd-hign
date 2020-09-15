@@ -1,5 +1,8 @@
 package embed
 
+type Etcd struct{
+}
+
 func StartEtcd(){
 
 	defer func() {
@@ -19,5 +22,9 @@ func configurePeerListeners(){
 
 // configureClientListeners -设置客户端的监听
 func configureClientListeners(){
+
+}
+
+func (e *Etcd)servePeers()(err error){
 
 }
