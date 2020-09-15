@@ -1,6 +1,14 @@
 package embed
 
+import (
+	"context"
+	"net"
+)
+
 type Etcd struct{
+}
+
+type peerListener struct{
 }
 
 func StartEtcd(){
