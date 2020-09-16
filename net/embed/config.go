@@ -20,7 +20,8 @@ func NewConfig() *Config {
 	lcurl,_ := url.Parse(DefaultListenClientURLs)
 	cfg := &Config{
 		Name: DefaultName,
-
-		LCUrls:[]url.URL{*lpurl},
+		LPUrls:[]url.URL{*lpurl},
+		LCUrls: []url.URL{*lcurl},
 	}
+	return cfg
 }

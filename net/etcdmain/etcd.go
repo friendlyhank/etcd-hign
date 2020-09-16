@@ -3,10 +3,11 @@ package etcdmain
 import "github.com/friendlyhank/etcd-hign/net/embed"
 
 func startEtcdOrProxyV2(){
-	_,_,_ =startEtcd()
+	cfg := newConfig()
+	_,_,_ =startEtcd(&cfg.ec)
 }
 
-func startEtcd()(<-chan struct{},<-chan error,error){
-	embed.StartEtcd()
+func startEtcd(cfg *embed.Config)(<-chan struct{},<-chan error,error){
+	embed.StartEtcd(cfg)
 	return nil,nil,nil
 }
