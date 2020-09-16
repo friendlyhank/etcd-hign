@@ -115,11 +115,15 @@ func (e *Etcd)servePeers()(err error){
 		for _,pl := range e.Peers{
 			go func(l *peerListener){
 				//u := l.Addr().String()
-
 				e.errHandler(l.serve())
 			}(pl)
 		}
 	}
+	return nil
+}
+
+func (e *Etcd) serveClients() (err error) {
+
 	return nil
 }
 
