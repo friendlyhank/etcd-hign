@@ -1,6 +1,11 @@
 package embed
 
-import "net/url"
+import (
+	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
+	"net/url"
+	"go.uber.org/zap"
+	"sync"
+)
 
 const(
 
@@ -12,7 +17,11 @@ const(
 
 type Config struct {
 	Name string `json:"name"`
+	PeerTLSInfo    transport.TLSInfo
 	LPUrls,LCUrls []url.URL
+
+	loggerMu *sync.RWMutex
+	logger   *zap.Logger
 }
 
 func NewConfig() *Config {
@@ -22,6 +31,9 @@ func NewConfig() *Config {
 		Name: DefaultName,
 		LPUrls:[]url.URL{*lpurl},
 		LCUrls: []url.URL{*lcurl},
+
+		loggerMu:   new(sync.RWMutex),
+		logger:nil,
 	}
 	return cfg
 }

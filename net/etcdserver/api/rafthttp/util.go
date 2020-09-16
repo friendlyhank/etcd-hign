@@ -7,5 +7,5 @@ import (
 )
 
 func NewListener(u url.URL,tlsinfo *transport.TLSInfo)(net.Listener,error){
-
+	return transport.NewTimeoutListener(u.Host,u.Scheme,tlsinfo,ConnReadTimeout,ConnWriteTimeout)
 }
