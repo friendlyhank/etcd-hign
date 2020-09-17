@@ -8,3 +8,28 @@
 
 
 ### cmux如何去封装的
+
+
+#### node
+type node struct {
+	propc      chan msgWithResult
+	recvc      chan pb.Message
+	confc      chan pb.ConfChangeV2
+	confstatec chan pb.ConfState
+	readyc     chan Ready
+	advancec   chan struct{}
+	tickc      chan struct{}
+	done       chan struct{}
+	stop       chan struct{}
+	status     chan chan Status
+
+	rn *RawNode
+}
+彻底理解结构体propc,recvc,readyc
+
+propc应该是发送消息的结果
+recvc发送消息
+ready消息的准备体
+
+
+### http.RoundTrip到底啥用

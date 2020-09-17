@@ -2,17 +2,21 @@ package etcdmain
 
 import (
 	"fmt"
-	"github.com/friendlyhank/etcd-hign/net/embed"
-	"go.uber.org/zap"
 	"os"
+
+	"github.com/friendlyhank/etcd-hign/net/embed"
+	"github.com/friendlyhank/etcd-study/pkg/osutil"
+	"go.uber.org/zap"
 )
 
-func startEtcdOrProxyV2(){
+func startEtcdOrProxyV2() {
 	cfg := newConfig()
+
+	var err error
 
 	//启动日志组件
 	lg := cfg.ec.GetLogger()
-	if lg == nil{
+	if lg == nil {
 		var zapError error
 		lg, zapError = zap.NewProduction()
 		if zapError != nil {
@@ -20,10 +24,24 @@ func startEtcdOrProxyV2(){
 			os.Exit(1)
 		}
 	}
-	_,_,_ =startEtcd(&cfg.ec)
+	if err != nil {
+
+	}
+
+	var stopped <-chan struct{}
+	var errc <-chan error
+	stopped, errc, err = startEtcd(&cfg.ec)
+
+	select {
+	case lerr := <-errc:
+		lg.Fatal("listener failed", zap.Error(lerr))
+	case <-stopped:
+	}
+
+	osutil.Exit(0)
 }
 
-func startEtcd(cfg *embed.Config)(<-chan struct{},<-chan error,error){
+func startEtcd(cfg *embed.Config) (<-chan struct{}, <-chan error, error) {
 	embed.StartEtcd(cfg)
-	return nil,nil,nil
+	return nil, nil, nil
 }
