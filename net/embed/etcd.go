@@ -56,7 +56,15 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 		e.Clients = append(e.Clients, sctx.l)
 	}
 
-	//
+	srvcfg := etcdserver.ServerConfig{}
+
+	//这里做的事情特别多
+	//startNode
+	//transport start
+	if e.Server, err = etcdserver.NewServer(srvcfg); err != nil {
+		return e, err
+	}
+
 	if err = e.servePeers(); err != nil {
 		return e, err
 	}
