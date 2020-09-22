@@ -2,6 +2,7 @@ package etcdserver
 
 import (
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
+	"github.com/friendlyhank/etcd-hign/net/raft"
 )
 
 type raftNode struct {
@@ -9,5 +10,26 @@ type raftNode struct {
 }
 
 type raftNodeConfig struct {
+	raft.Node
 	transport rafthttp.Transporter
+}
+
+func newRaftNode(cfg raftNodeConfig) *raftNode {
+	r := &raftNode{
+		raftNodeConfig: cfg,
+	}
+	return r
+}
+
+func (r *raftNode) start(rh *raftReadyHandler) {
+	go func() {
+		for {
+			select {}
+		}
+	}()
+}
+
+func startNode() (n raft.Node) {
+	n = raft.StartNode()
+	return n
 }
