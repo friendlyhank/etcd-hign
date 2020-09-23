@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"go.etcd.io/etcd/pkg/types"
+
 	"github.com/friendlyhank/etcd-hign/net/etcdserver"
 
 	"go.uber.org/zap"
@@ -55,6 +57,11 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 	for _, sctx := range e.sctxs {
 		e.Clients = append(e.Clients, sctx.l)
 	}
+
+	var (
+		urlsmap types.URLsMap
+		token   string
+	)
 
 	srvcfg := etcdserver.ServerConfig{}
 

@@ -1,6 +1,7 @@
 package rafthttp
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
@@ -22,6 +23,6 @@ func (t *Transport) Handler() http.Handler {
 
 func (t *Transport) Send(msgs []raftpb.Message) {
 	for _, m := range msgs {
-
+		fmt.Println(m)
 	}
 }
