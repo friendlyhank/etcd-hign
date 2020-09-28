@@ -32,4 +32,5 @@ recvc发送消息
 ready消息的准备体
 
 
-### http.RoundTrip到底啥用
+在raft\node.go (n *node)run()去设置ready,让节点进入准备状态
+当节点进入准备状态就会在etcdserver\raft.go 

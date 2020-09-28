@@ -2,28 +2,22 @@ package embed
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
 
-	"go.etcd.io/etcd/pkg/types"
-
 	"github.com/friendlyhank/etcd-hign/net/etcdserver"
-
-	"go.uber.org/zap"
-
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/etcdhttp"
-
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
+	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"github.com/soheilhy/cmux"
+	"go.uber.org/zap"
 )
 
 type Etcd struct {
-	Peers   []*peerListener
-	Clients []net.Listener
-	// a map of contexts for the servers that serves client requests.
-	sctxs map[string]*serveCtx
+	Peers []*peerListener
 
 	Server *etcdserver.EtcdServer
 
@@ -49,21 +43,20 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 		return e, err
 	}
 
-	//客户端Listeners
-	if e.sctxs, err = configureClientListeners(cfg); err != nil {
-		return e, err
-	}
-
-	for _, sctx := range e.sctxs {
-		e.Clients = append(e.Clients, sctx.l)
-	}
-
 	var (
 		urlsmap types.URLsMap
 		token   string
 	)
 
-	srvcfg := etcdserver.ServerConfig{}
+	urlsmap, token, err = cfg.PeerURLsMapAndToken("etcd")
+	if err != nil {
+		return e, fmt.Errorf("error setting up initial cluster: %v", err)
+	}
+
+	srvcfg := etcdserver.ServerConfig{
+		InitialPeerURLsMap:  urlsmap,
+		InitialClusterToken: token,
+	}
 
 	//这里做的事情特别多
 	//node start
@@ -149,13 +142,6 @@ func (e *Etcd) servePeers() (err error) {
 		p.serve = func() error { return m.Serve() }
 		p.close = func(ctx context.Context) error {
 			return nil
-		}
-
-		for _, pl := range e.Peers {
-			go func(l *peerListener) {
-				//u := l.Addr().String()
-				e.errHandler(l.serve())
-			}(pl)
 		}
 	}
 	return nil
