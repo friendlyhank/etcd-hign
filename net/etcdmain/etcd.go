@@ -43,11 +43,9 @@ func startEtcdOrProxyV2() {
 
 func startEtcd(cfg *embed.Config) (<-chan struct{}, <-chan error, error) {
 	e, err := embed.StartEtcd(cfg)
+	fmt.Println(e)
 	if err != nil {
 		return nil, nil, err
-	}
-	select {
-	case <-e.Server.ReadyNotify():
 	}
 	return nil, nil, nil
 }

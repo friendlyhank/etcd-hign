@@ -22,8 +22,6 @@ type Server interface {
 
 type EtcdServer struct {
 	r raftNode
-
-	readych chan struct{}
 }
 
 func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
@@ -36,7 +34,6 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 	n = startNode()
 
 	srv = &EtcdServer{
-		readych: make(chan struct{}),
 		r: *newRaftNode(raftNodeConfig{
 			Node: n, //这货隐藏的比较深
 		}),
@@ -62,7 +59,5 @@ func (s *EtcdServer) run() {
 	rh := &raftReadyHandler{}
 	s.r.start(rh)
 }
-
-func (s *EtcdServer) ReadyNotify() <-chan struct{} { return s.readych }
 
 func (s *EtcdServer) RaftHandler() http.Handler { return s.r.transport.Handler() }
