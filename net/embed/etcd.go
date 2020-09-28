@@ -10,7 +10,6 @@ import (
 	"github.com/friendlyhank/etcd-hign/net/etcdserver"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/etcdhttp"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
-	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
@@ -93,37 +92,6 @@ func configurePeerListeners(cfg *Config) (peers []*peerListener, err error) {
 		}
 	}
 	return peers, nil
-}
-
-// configureClientListeners -设置客户端的监听
-func configureClientListeners(cfg *Config) (sctxs map[string]*serveCtx, err error) {
-	sctxs = make(map[string]*serveCtx)
-	for _, u := range cfg.LCUrls {
-		sctx := newServeCtx()
-
-		network := "tcp"
-		addr := u.Host
-		if u.Scheme == "unix" || u.Scheme == "unixs" {
-			network = "unix"
-			addr = u.Host + u.Path
-		}
-		sctx.network = network
-
-		if sctx.l, err = net.Listen(network, addr); err != nil {
-			return nil, err
-		}
-		// net.Listener will rewrite ipv4 0.0.0.0 to ipv6 [::], breaking
-		// hosts that disable ipv6. So, use the address given by the user.
-		sctx.addr = addr
-
-		if network == "tcp" {
-			if sctx.l, err = transport.NewKeepAliveListener(sctx.l, network, nil); err != nil {
-				return nil, err
-			}
-		}
-		sctxs[addr] = sctx
-	}
-	return sctxs, nil
 }
 
 //peers accept|read and write
