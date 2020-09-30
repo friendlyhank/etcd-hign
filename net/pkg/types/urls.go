@@ -45,3 +45,12 @@ func (us *URLs) Sort() {
 func (us URLs) Len() int           { return len(us) }
 func (us URLs) Less(i, j int) bool { return us[i].String() < us[j].String() }
 func (us URLs) Swap(i, j int)      { us[i], us[j] = us[j], us[i] }
+
+func (us URLs) StringSlice() []string {
+	out := make([]string, len(us))
+	for i := range us {
+		out[i] = us[i].String()
+	}
+
+	return out
+}

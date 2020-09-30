@@ -33,7 +33,7 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 		n  raft.Node
 		cl *membership.RaftCluster
 	)
-
+	cl, err = membership.NewClusterFromURLsMap(nil, cfg.InitialClusterToken, cfg.InitialPeerURLsMap)
 	//启动node
 	n = startNode()
 
@@ -42,7 +42,7 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 			Node: n, //这货隐藏的比较深
 		}),
 	}
-
+	// TODO: move transport initialization near the definition of remote
 	tr := &rafthttp.Transport{}
 	srv.r.transport = tr
 	return srv, nil
