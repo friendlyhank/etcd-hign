@@ -3,6 +3,9 @@ package rafthttp
 import (
 	"fmt"
 	"net/http"
+	"sync"
+
+	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 )
@@ -13,6 +16,8 @@ type Transporter interface {
 }
 
 type Transport struct {
+	mu    sync.RWMutex      //protect the remote and peer map
+	peers map[types.ID]Peer //peers map
 }
 
 func (t *Transport) Handler() http.Handler {
@@ -20,6 +25,12 @@ func (t *Transport) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(RaftStreamPrefix+"/", streamHandler)
 	return mux
+}
+
+func (t *Transport) Get(id types.ID) Peer {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.peers[id]
 }
 
 func (t *Transport) Send(msgs []raftpb.Message) {

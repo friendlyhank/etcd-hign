@@ -3,6 +3,8 @@ package etcdserver
 import (
 	"net/http"
 
+	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/membership"
+
 	"github.com/friendlyhank/etcd-hign/net/raft"
 
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
@@ -28,7 +30,8 @@ type EtcdServer struct {
 func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 
 	var (
-		n raft.Node
+		n  raft.Node
+		cl *membership.RaftCluster
 	)
 
 	//启动node

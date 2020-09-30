@@ -6,12 +6,14 @@ import (
 )
 
 type RaftCluster struct {
+	members map[types.ID]*Member
 }
 
 func NewClusterFromURLsMap(lg *zap.Logger, token string, urlsmap types.URLsMap) (*RaftCluster, error) {
 	c := NewCluster()
 	for name, urls := range urlsmap {
-
+		m := newMember()
+		if _,ok :=c.members[m]
 	}
 }
 

@@ -1,7 +1,6 @@
 package rafthttp
 
 import (
-	"fmt"
 	"net/http"
 	"path"
 )
@@ -20,5 +19,5 @@ func newStreamHandler() http.Handler {
 }
 
 func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("ss")
+	conn := &outgoingConn{}
 }

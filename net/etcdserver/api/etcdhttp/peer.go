@@ -26,5 +26,6 @@ func newPeerHandler(
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", http.NotFound)
 	mux.Handle(rafthttp.RaftPrefix, raftHandler)
+	mux.Handle(rafthttp.RaftPrefix+"/", raftHandler)
 	return mux
 }

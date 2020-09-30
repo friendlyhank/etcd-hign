@@ -113,11 +113,11 @@ func (e *Etcd) servePeers() (err error) {
 		}
 
 		//这个底层tcp是必须的，否则http无法连通
-		//for _, pl := range e.Peers {
-		//	go func(l *peerListener) {
-		//		e.errHandler(l.serve())
-		//	}(pl)
-		//}
+		for _, pl := range e.Peers {
+			go func(l *peerListener) {
+				e.errHandler(l.serve())
+			}(pl)
+		}
 	}
 	return nil
 }
