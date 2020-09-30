@@ -3,12 +3,14 @@ package etcdhttp
 import (
 	"net/http"
 
+	"go.etcd.io/etcd/etcdserver/api/rafthttp"
+
 	"github.com/friendlyhank/etcd-hign/net/etcdserver"
 	"go.uber.org/zap"
 )
 
 func NewPeerHandler(lg *zap.Logger, s etcdserver.ServerPeerV2) http.Handler {
-	return newPeerHandler(lg, s, nil, nil, nil)
+	return newPeerHandler(lg, s, s.RaftHandler(), nil, nil)
 }
 
 func newPeerHandler(
@@ -21,8 +23,8 @@ func newPeerHandler(
 	if lg == nil {
 		lg = zap.NewNop()
 	}
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", http.NotFound)
+	mux.Handle(rafthttp.RaftPrefix, raftHandler)
 	return mux
 }

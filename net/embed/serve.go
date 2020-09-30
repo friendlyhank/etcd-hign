@@ -27,7 +27,6 @@ func newServeCtx() *serveCtx {
 
 func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Handler {
 	if otherHandler == nil {
-
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		otherHandler.ServeHTTP(w, r)

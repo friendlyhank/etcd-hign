@@ -9,6 +9,7 @@ import (
 )
 
 type ServerPeer interface {
+	RaftHandler() http.Handler
 }
 
 type ServerV3 interface {
@@ -60,4 +61,5 @@ func (s *EtcdServer) run() {
 	s.r.start(rh)
 }
 
+//设置EtcdServer的三大Handler RaftHandler() LeaseHandler()
 func (s *EtcdServer) RaftHandler() http.Handler { return s.r.transport.Handler() }

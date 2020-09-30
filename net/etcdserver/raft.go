@@ -1,8 +1,6 @@
 package etcdserver
 
 import (
-	"fmt"
-
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
 	"github.com/friendlyhank/etcd-hign/net/raft"
 )
@@ -27,9 +25,8 @@ func (r *raftNode) start(rh *raftReadyHandler) {
 	go func() {
 		for {
 			select {
-			case rd := <-r.Ready():
-				fmt.Println("Hello")
-				fmt.Println(rd)
+			case <-r.Ready():
+
 			}
 		}
 	}()

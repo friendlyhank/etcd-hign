@@ -1,6 +1,7 @@
 package test
 
 import (
+	"net/http"
 	"os"
 	"testing"
 
@@ -63,4 +64,10 @@ func TestInfra1EtcdMain(t *testing.T) {
 
 func TestInfra2EtcdMain(t *testing.T) {
 	StartInfra2Server()
+}
+
+/*====================================Http请求===============================================*/
+func TestSendHttpGet(t *testing.T) {
+	//不知道从哪里的数据源会发送一个http请求
+	http.Get("http://127.0.0.1:2380/raft/stream/message/19ac17627e3e396f")
 }
