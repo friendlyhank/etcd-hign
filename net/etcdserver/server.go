@@ -1,6 +1,7 @@
 package etcdserver
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/membership"
@@ -33,7 +34,9 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 		n  raft.Node
 		cl *membership.RaftCluster
 	)
+	//根据urlmap设置集群信息和member信息
 	cl, err = membership.NewClusterFromURLsMap(nil, cfg.InitialClusterToken, cfg.InitialPeerURLsMap)
+	fmt.Println(cl)
 	//启动node
 	n = startNode()
 
@@ -45,6 +48,8 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 	// TODO: move transport initialization near the definition of remote
 	tr := &rafthttp.Transport{}
 	srv.r.transport = tr
+
+	//设置节点信息
 	return srv, nil
 }
 

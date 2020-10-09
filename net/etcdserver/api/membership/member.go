@@ -11,7 +11,7 @@ import (
 )
 
 // RaftAttributes represents the raft related attributes of an etcd member.
-//peer 成员
+//集群的Raft属性
 type RaftAttributes struct {
 	// PeerURLs is the list of peers in the raft cluster.
 	// TODO(philips): ensure these are URLs
@@ -20,9 +20,13 @@ type RaftAttributes struct {
 	IsLearner bool `json:"isLearner,omitempty"`
 }
 
+type Attributes struct {
+}
+
 type Member struct {
 	ID types.ID `json:"id"`
 	RaftAttributes
+	Attributes
 }
 
 func NewMember(name string, peerURLs types.URLs, clusterName string, now *time.Time) *Member {
@@ -51,3 +55,19 @@ func newMember(name string, peerURLs types.URLs, clusterName string, now *time.T
 	m.ID = types.ID(binary.BigEndian.Uint64(hash[:8]))
 	return m
 }
+
+// MembersByID implements sort by ID interface
+type MembersByID []*Member
+
+func (ms MembersByID) Len() int           { return len(ms) }
+func (ms MembersByID) Less(i, j int) bool { return ms[i].ID < ms[j].ID }
+func (ms MembersByID) Swap(i, j int)      { ms[i], ms[j] = ms[j], ms[i] }
+
+// MembersByPeerURLs implements sort by peer urls interface
+type MembersByPeerURLs []*Member
+
+func (ms MembersByPeerURLs) Len() int { return len(ms) }
+func (ms MembersByPeerURLs) Less(i, j int) bool {
+	return ms[i].PeerURLs[0] < ms[j].PeerURLs[0]
+}
+func (ms MembersByPeerURLs) Swap(i, j int) { ms[i], ms[j] = ms[j], ms[i] }

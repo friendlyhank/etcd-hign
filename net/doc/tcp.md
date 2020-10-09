@@ -10,7 +10,7 @@
 ### cmux如何去封装的
 
 
-#### node
+### node
 type node struct {
 	propc      chan msgWithResult
 	recvc      chan pb.Message
@@ -34,3 +34,14 @@ ready消息的准备体
 
 在raft\node.go (n *node)run()去设置ready,让节点进入准备状态
 当节点进入准备状态就会在etcdserver\raft.go  (r *raftNode) start(rh *raftReadyHandler)不断去发送消息
+
+### Transport
+transport是网络的核心组件，所有我网络入口都会先进入transport
+
+然后transport对应三大Handle
+pipelinehandle
+streamhandle
+snaphandle
+
+每个handle会走到对象的peer节点
+

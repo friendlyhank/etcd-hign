@@ -2,15 +2,18 @@ package membership
 
 import (
 	"fmt"
+	"sort"
+	"sync"
 
-	"go.etcd.io/etcd/raft"
+	"github.com/friendlyhank/etcd-hign/net/raft"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"go.uber.org/zap"
 )
 
 type RaftCluster struct {
-	members map[types.ID]*Member
+	sync.Mutex // guards the fields below
+	members    map[types.ID]*Member
 }
 
 func NewClusterFromURLsMap(lg *zap.Logger, token string, urlsmap types.URLsMap) (*RaftCluster, error) {
@@ -29,5 +32,26 @@ func NewClusterFromURLsMap(lg *zap.Logger, token string, urlsmap types.URLsMap) 
 }
 
 func NewCluster() *RaftCluster {
-	return &RaftCluster{}
+	return &RaftCluster{
+		members: make(map[types.ID]*Member),
+	}
+}
+
+func (c *RaftCluster) Members() []*Member {
+	c.Lock()
+	defer c.Unlock()
+	var ms MembersByID
+	for _, m := range c.members {
+		ms = append(ms, m.Clone())
+	}
+	sort.Sort(ms)
+	return []*Member(ms)
+}
+
+func (m *Member) Clone() *Member {
+	if m == nil {
+		return nil
+	}
+	mm := &Member{}
+	return mm
 }

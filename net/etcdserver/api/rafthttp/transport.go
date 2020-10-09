@@ -21,6 +21,9 @@ type Transport struct {
 }
 
 func (t *Transport) Handler() http.Handler {
+	/*
+
+	 */
 	streamHandler := newStreamHandler()
 	mux := http.NewServeMux()
 	mux.Handle(RaftStreamPrefix+"/", streamHandler)
