@@ -2,11 +2,11 @@ package etcdserver
 
 import (
 	"fmt"
+	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/membership"
 	"net/http"
 
-	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/membership"
-
 	"github.com/friendlyhank/etcd-hign/net/raft"
+
 
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
 )
