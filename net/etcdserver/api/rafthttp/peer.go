@@ -1,6 +1,12 @@
 package rafthttp
 
-import "time"
+import (
+	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+)
 
 const (
 	ConnReadTimeout  = 5 * time.Second
@@ -16,7 +22,21 @@ type Peer interface {
 	attachOutgoingConn(conn *outgoingConn)
 }
 
-type peer struct{}
+type peer struct {
+	lg *zap.Logger
+
+	localID types.ID //本地节点唯一id
+	// id of the remote raft peer node 除本地节点外的某个节点
+	id types.ID
+}
+
+func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
+	p := &peer{
+		localID: t.ID,
+		id:      peerID,
+	}
+	return p
+}
 
 func (p *peer) attachOutgoingConn(conn *outgoingConn) {
 

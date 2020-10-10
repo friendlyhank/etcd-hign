@@ -46,4 +46,11 @@ func (t *Transport) Send(msgs []raftpb.Message) {
 func (t *Transport) AddRemote(id types.ID, us []string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if _, ok := t.peers[id]; ok {
+		return
+	}
+	urls, err := types.NewURLs(us)
+	if err != nil {
+	}
+	t.peers[id] =
 }
