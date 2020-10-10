@@ -25,6 +25,11 @@ type Transport struct {
 	peers map[types.ID]Peer //peers map
 }
 
+func (t *Transport) Start() error {
+	t.peers = make(map[types.ID]Peer)
+	return nil
+}
+
 func (t *Transport) Handler() http.Handler {
 	/*
 	 */

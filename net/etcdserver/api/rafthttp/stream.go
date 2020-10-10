@@ -2,12 +2,19 @@ package rafthttp
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"go.uber.org/zap"
 )
 
-type outgoingConn struct{}
+type outgoingConn struct {
+	io.Writer
+	http.Flusher
+	localID types.ID
+	peerID  types.ID
+}
 
 type streamWriter struct {
 	localID types.ID

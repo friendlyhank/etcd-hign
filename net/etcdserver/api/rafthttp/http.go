@@ -46,11 +46,17 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid from", http.StatusNotFound)
 		return
 	}
+	//获取指定的peer
 	p := h.peerGetter.Get(from)
 	if p == nil {
 		http.Error(w, "error sender not found", http.StatusNotFound)
 		return
 	}
-	conn := &outgoingConn{}
+	w.WriteHeader(http.StatusOK)
+	conn := &outgoingConn{
+		Flusher: w.(http.Flusher),
+		localID: h.tr.ID,
+		peerID:  from,
+	}
 	fmt.Println(conn)
 }

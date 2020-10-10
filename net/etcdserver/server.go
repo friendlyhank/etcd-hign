@@ -49,9 +49,14 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 	tr := &rafthttp.Transport{
 		ID: id,
 	}
+	//启动etcd核心网络传输组件
+	if err = tr.Start(); err != nil {
+		return nil, err
+	}
 	//addPeer 会startPeer并且启动监听
 	for _, m := range cl.Members() {
 		if m.ID != id {
+			tr.AddRemote(m.ID, m.PeerURLs)
 		}
 	}
 	srv.r.transport = tr
