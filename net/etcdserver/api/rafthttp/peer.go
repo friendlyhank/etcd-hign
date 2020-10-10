@@ -44,5 +44,15 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 }
 
 func (p *peer) attachOutgoingConn(conn *outgoingConn) {
+	var ok bool
+	switch conn.t {
+	case streamTypeMsgAppV2:
+		ok = p.msgAppV2Writer.attach(conn)
+	case streamTypeMessage:
+		ok = p.writer.attach(conn)
+	default:
+	}
+	if !ok {
 
+	}
 }
