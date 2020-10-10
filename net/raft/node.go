@@ -1,6 +1,11 @@
 package raft
 
+import (
+	pb "github.com/friendlyhank/etcd-hign/net/v3/raft/raftpb"
+)
+
 type Ready struct {
+	Messages []pb.Message
 }
 
 type Node interface {
@@ -14,6 +19,7 @@ type node struct {
 }
 
 func StartNode() Node {
+	rn,err :=
 	n := newNode()
 
 	//启动node
@@ -42,8 +48,10 @@ func (n *node) run() {
 }
 
 // newReady- 在这里去new Ready
-func newReady() Ready {
-	rd := Ready{}
+func newReady(r *raft) Ready {
+	rd := Ready{
+		Messages: r.msgs,
+	}
 	return rd
 }
 

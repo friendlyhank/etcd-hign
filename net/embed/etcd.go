@@ -66,7 +66,7 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 	}
 
 	//etcdserver start
-	//raftNode start
+	//raftNode start raftNode启动的时候会尝试去发送消息
 	e.Server.Start()
 
 	if err = e.servePeers(); err != nil {
