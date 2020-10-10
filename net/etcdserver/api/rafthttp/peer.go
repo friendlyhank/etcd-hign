@@ -28,12 +28,17 @@ type peer struct {
 	localID types.ID //本地节点唯一id
 	// id of the remote raft peer node 除本地节点外的某个节点
 	id types.ID
+
+	msgAppV2Writer *streamWriter
+	writer         *streamWriter
 }
 
 func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 	p := &peer{
-		localID: t.ID,
-		id:      peerID,
+		localID:        t.ID,
+		id:             peerID,
+		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID),
+		writer:         startStreamWriter(t.Logger, t.ID, peerID),
 	}
 	return p
 }

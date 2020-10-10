@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
@@ -16,6 +18,8 @@ type Transporter interface {
 }
 
 type Transport struct {
+	Logger *zap.Logger
+
 	ID    types.ID          //local member ID 当前节点的唯一id
 	mu    sync.RWMutex      //protect the remote and peer map
 	peers map[types.ID]Peer //peers map
@@ -23,9 +27,8 @@ type Transport struct {
 
 func (t *Transport) Handler() http.Handler {
 	/*
-
 	 */
-	streamHandler := newStreamHandler()
+	streamHandler := newStreamHandler(t, t, t.ID)
 	mux := http.NewServeMux()
 	mux.Handle(RaftStreamPrefix+"/", streamHandler)
 	return mux
@@ -52,5 +55,5 @@ func (t *Transport) AddRemote(id types.ID, us []string) {
 	urls, err := types.NewURLs(us)
 	if err != nil {
 	}
-	t.peers[id] =
+	t.peers[id] = startPeer(t, urls, id)
 }
