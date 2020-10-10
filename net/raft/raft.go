@@ -8,3 +8,8 @@ const None uint64 = 0
 type raft struct {
 	msgs []pb.Message
 }
+
+func newRaft() *raft {
+	r := &raft{}
+	return r
+}

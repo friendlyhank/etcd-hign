@@ -19,8 +19,11 @@ type node struct {
 }
 
 func StartNode() Node {
-	rn,err :=
-	n := newNode()
+	rn, err := NewRawNode()
+	if err != nil {
+		panic(err)
+	}
+	n := newNode(rn)
 
 	//启动node
 	//Ready在这里
@@ -28,15 +31,28 @@ func StartNode() Node {
 	return &n
 }
 
-func newNode() node {
+func newNode(rn *RawNode) node {
 	return node{
 		readyc: make(chan Ready),
+		rn:     rn,
 	}
 }
 
 func (n *node) run() {
 	var readyc chan Ready
 	var rd Ready
+
+	//TODO HANK 写死消息
+	rd = Ready{
+		Messages: []pb.Message{
+			pb.Message{
+				Type: pb.MsgVote,
+				To:   1849879258734672239,
+				From: 13803658152347727308,
+			},
+		},
+	}
+
 	for {
 		rd = n.rn.readyWithoutAccept()
 		readyc = n.readyc
