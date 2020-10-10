@@ -1,12 +1,12 @@
 package etcdserver
 
 import (
-	"fmt"
-	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/membership"
 	"net/http"
 
-	"github.com/friendlyhank/etcd-hign/net/raft"
+	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/membership"
+	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 
+	"github.com/friendlyhank/etcd-hign/net/raft"
 
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
 )
@@ -32,13 +32,13 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 
 	var (
 		n  raft.Node
+		id types.ID //当前节点唯一id
 		cl *membership.RaftCluster
 	)
 	//根据urlmap设置集群信息和member信息
 	cl, err = membership.NewClusterFromURLsMap(nil, cfg.InitialClusterToken, cfg.InitialPeerURLsMap)
-	fmt.Println(cl)
 	//启动node
-	n = startNode()
+	id, n = startNode(cfg, cl)
 
 	srv = &EtcdServer{
 		r: *newRaftNode(raftNodeConfig{
@@ -46,7 +46,14 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 		}),
 	}
 	// TODO: move transport initialization near the definition of remote
-	tr := &rafthttp.Transport{}
+	tr := &rafthttp.Transport{
+		ID: id,
+	}
+	//addPeer 会startPeer并且启动监听
+	for _, m := range cl.Members() {
+		if m.ID != id {
+		}
+	}
 	srv.r.transport = tr
 
 	//设置节点信息

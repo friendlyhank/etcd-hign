@@ -1,7 +1,9 @@
 package etcdserver
 
 import (
+	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/membership"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
+	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"github.com/friendlyhank/etcd-hign/net/raft"
 )
 
@@ -32,7 +34,9 @@ func (r *raftNode) start(rh *raftReadyHandler) {
 	}()
 }
 
-func startNode() (n raft.Node) {
+func startNode(cfg ServerConfig, cl *membership.RaftCluster) (id types.ID, n raft.Node) {
+	member := cl.MemberByName(cfg.Name)
+	id = member.ID
 	n = raft.StartNode()
-	return n
+	return id, n
 }

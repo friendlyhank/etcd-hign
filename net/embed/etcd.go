@@ -53,6 +53,7 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 	}
 
 	srvcfg := etcdserver.ServerConfig{
+		Name:                cfg.Name,
 		InitialPeerURLsMap:  urlsmap,
 		InitialClusterToken: token,
 	}

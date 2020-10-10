@@ -16,6 +16,7 @@ type Transporter interface {
 }
 
 type Transport struct {
+	ID    types.ID          //local member ID 当前节点的唯一id
 	mu    sync.RWMutex      //protect the remote and peer map
 	peers map[types.ID]Peer //peers map
 }
@@ -40,4 +41,9 @@ func (t *Transport) Send(msgs []raftpb.Message) {
 	for _, m := range msgs {
 		fmt.Println(m)
 	}
+}
+
+func (t *Transport) AddRemote(id types.ID, us []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 }

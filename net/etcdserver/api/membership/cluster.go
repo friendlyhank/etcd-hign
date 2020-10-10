@@ -48,10 +48,31 @@ func (c *RaftCluster) Members() []*Member {
 	return []*Member(ms)
 }
 
+func (c *RaftCluster) MemberByName(name string) *Member {
+	c.Lock()
+	defer c.Unlock()
+	var memb *Member
+	for _, m := range c.members {
+		if m.Name == name {
+
+		}
+		memb = m
+	}
+	return memb.Clone()
+}
+
 func (m *Member) Clone() *Member {
 	if m == nil {
 		return nil
 	}
-	mm := &Member{}
+	mm := &Member{
+		ID: m.ID,
+		RaftAttributes: RaftAttributes{
+			IsLearner: m.IsLearner,
+		},
+		Attributes: Attributes{
+			Name: m.Name,
+		},
+	}
 	return mm
 }

@@ -21,6 +21,7 @@ type RaftAttributes struct {
 }
 
 type Attributes struct {
+	Name string `json:"name,omitempty"`
 }
 
 type Member struct {
@@ -39,6 +40,7 @@ func newMember(name string, peerURLs types.URLs, clusterName string, now *time.T
 			PeerURLs:  peerURLs.StringSlice(),
 			IsLearner: isLearner,
 		},
+		Attributes: Attributes{Name: name},
 	}
 
 	var b []byte
