@@ -5,6 +5,9 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"time"
+
+	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"go.uber.org/zap"
@@ -51,9 +54,13 @@ type outgoingConn struct {
 }
 
 type streamWriter struct {
+	lg *zap.Logger
+
 	localID types.ID
 	peerID  types.ID
-	connc   chan *outgoingConn
+
+	msgc  chan raftpb.Message
+	connc chan *outgoingConn
 }
 
 func startStreamWriter(lg *zap.Logger, local, id types.ID) *streamWriter {
@@ -67,10 +74,22 @@ func startStreamWriter(lg *zap.Logger, local, id types.ID) *streamWriter {
 }
 
 func (cw *streamWriter) run() {
+	var (
+		msgc       chan raftpb.Message
+		heartbeatc <-chan time.Time
+		flusher    http.Flusher
+	)
+	//设置读取心跳时间
+	tickc := time.NewTicker(ConnReadTimeout / 3)
+	defer tickc.Stop()
 	for {
 		select {
 		case conn := <-cw.connc:
-			fmt.Println(conn)
+			flusher = conn.Flusher
+			heartbeatc, msgc = tickc.C, cw.msgc
+			fmt.Println(flusher)
+			fmt.Println(msgc)
+			fmt.Println(heartbeatc)
 		}
 	}
 }
