@@ -1,7 +1,7 @@
 package raft
 
 import (
-	pb "github.com/friendlyhank/etcd-hign/net/v3/raft/raftpb"
+	pb "github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 )
 
 type Ready struct {
@@ -43,17 +43,16 @@ func (n *node) run() {
 	var rd Ready
 
 	//TODO HANK 写死消息
-	rd = Ready{
-		Messages: []pb.Message{
-			pb.Message{
-				Type: pb.MsgVote,
-				To:   1849879258734672239,
-				From: 13803658152347727308,
-			},
+	n.rn.raft.msgs = []pb.Message{
+		pb.Message{
+			Type: pb.MsgVote,
+			To:   5751989205868428943,
+			From: 1849879258734672239,
 		},
 	}
 
 	for {
+		//从这里去写入消息到channel,然后channel接收端会b不断循环发送消息
 		rd = n.rn.readyWithoutAccept()
 		readyc = n.readyc
 

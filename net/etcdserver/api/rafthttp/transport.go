@@ -1,7 +1,6 @@
 package rafthttp
 
 import (
-	"fmt"
 	"net/http"
 	"sync"
 
@@ -14,7 +13,18 @@ import (
 
 // Transporter -网络接口核心
 type Transporter interface {
+	// Handler returns the HTTP handler of the transporter.
+	// A transporter HTTP handler handles the HTTP requests
+	// from remote peers.
+	// The handler MUST be used to handle RaftPrefix(/raft)
+	// endpoint.
 	Handler() http.Handler
+	// Send sends out the given messages to the remote peers.
+	// Each message has a To field, which is an id that maps
+	// to an existing peer in the transport.
+	// If the id cannot be found in the transport, the message
+	// will be ignored.
+	Send(m []raftpb.Message)
 }
 
 type Transport struct {
@@ -47,7 +57,19 @@ func (t *Transport) Get(id types.ID) Peer {
 
 func (t *Transport) Send(msgs []raftpb.Message) {
 	for _, m := range msgs {
-		fmt.Println(m)
+		if m.To == 0 {
+			continue
+		}
+		to := types.ID(m.To)
+
+		t.mu.RLock()
+		p, pok := t.peers[to]
+		t.mu.RUnlock()
+
+		if pok {
+
+			continue
+		}
 	}
 }
 

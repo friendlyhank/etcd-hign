@@ -27,8 +27,9 @@ func (r *raftNode) start(rh *raftReadyHandler) {
 	go func() {
 		for {
 			select {
-			case <-r.Ready():
-
+			case rd := <-r.Ready():
+				msg := rd.Messages
+				r.transport.Send(msg)
 			}
 		}
 	}()

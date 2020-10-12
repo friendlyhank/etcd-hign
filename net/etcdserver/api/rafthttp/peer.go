@@ -1,7 +1,10 @@
 package rafthttp
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 
 	"go.uber.org/zap"
 
@@ -11,9 +14,18 @@ import (
 const (
 	ConnReadTimeout  = 5 * time.Second
 	ConnWriteTimeout = 5 * time.Second
+
+	streamAppV2 = "streamMsgAppV2"
+	streamMsg   = "streamMsg"
+	pipelineMsg = "pipeline"
 )
 
 type Peer interface {
+	// send sends the message to the remote peer. The function is non-blocking
+	// and has no promise that the message will be received by the remote.
+	// When it fails to send message out, it will report the status to underlying
+	// raft.
+	send(m raftpb.Message)
 	// attachOutgoingConn attaches the outgoing connection to the peer for
 	// stream usage. After the call, the ownership of the outgoing
 	// connection hands over to the peer. The peer will close the connection
@@ -43,6 +55,16 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 	return p
 }
 
+func (p *peer) send(m raftpb.Message) {
+	writec, name := p.pick(m)
+	select {
+	case writec <- m:
+		fmt.Println(name)
+	default:
+
+	}
+}
+
 func (p *peer) attachOutgoingConn(conn *outgoingConn) {
 	var ok bool
 	switch conn.t {
@@ -55,4 +77,8 @@ func (p *peer) attachOutgoingConn(conn *outgoingConn) {
 	if !ok {
 
 	}
+}
+
+func (p *peer) pick(m raftpb.Message) (writec chan<- raftpb.Message, picked string) {
+	return p.writer.msgc, streamMsg
 }
