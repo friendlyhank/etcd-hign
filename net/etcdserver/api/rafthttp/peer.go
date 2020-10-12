@@ -43,15 +43,35 @@ type peer struct {
 
 	msgAppV2Writer *streamWriter
 	writer         *streamWriter
+	msgAppV2Reader *streamReader
+	msgAppReader   *streamReader
 }
 
 func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 	p := &peer{
 		localID:        t.ID,
 		id:             peerID,
-		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID),
-		writer:         startStreamWriter(t.Logger, t.ID, peerID),
+		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID), //启动streamv2写入流
+		writer:         startStreamWriter(t.Logger, t.ID, peerID), //启动stream写入流
 	}
+
+	p.msgAppV2Reader = &streamReader{
+		lg:     t.Logger,
+		peerID: peerID,
+		typ:    streamTypeMsgAppV2,
+		tr:     t,
+	}
+
+	p.msgAppReader = &streamReader{
+		lg:     t.Logger,
+		peerID: peerID,
+		typ:    streamTypeMessage,
+		tr:     t,
+	}
+
+	p.msgAppV2Reader.start()
+	p.msgAppReader.start()
+
 	return p
 }
 

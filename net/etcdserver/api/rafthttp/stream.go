@@ -115,3 +115,23 @@ func (cw *streamWriter) attach(conn *outgoingConn) bool {
 		return true
 	}
 }
+
+// streamReader is a long-running go-routine that dials to the remote stream
+// endpoint and reads messages from the response body returned.
+type streamReader struct {
+	lg *zap.Logger
+
+	peerID types.ID
+	typ    streamType
+	tr     *Transport
+
+	mu sync.Mutex
+}
+
+func (cr *streamReader) start() {
+	go cr.run()
+}
+
+func (cr *streamReader) run() {
+
+}
