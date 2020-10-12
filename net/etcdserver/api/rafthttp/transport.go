@@ -67,7 +67,7 @@ func (t *Transport) Send(msgs []raftpb.Message) {
 		t.mu.RUnlock()
 
 		if pok {
-
+			p.send(m)
 			continue
 		}
 	}

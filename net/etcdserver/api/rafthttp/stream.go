@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
@@ -59,8 +60,13 @@ type streamWriter struct {
 	localID types.ID
 	peerID  types.ID
 
-	msgc  chan raftpb.Message
-	connc chan *outgoingConn
+	mu      sync.Mutex
+	working bool //流是否处于工作状态
+
+	msgc  chan raftpb.Message //接收消息
+	connc chan *outgoingConn  //获取连接
+	stopc chan struct{}
+	done  chan struct{}
 }
 
 func startStreamWriter(lg *zap.Logger, local, id types.ID) *streamWriter {
