@@ -123,7 +123,9 @@ type streamReader struct {
 
 	peerID types.ID
 	typ    streamType
+
 	tr     *Transport
+	picker *urlPicker
 
 	mu sync.Mutex
 }
@@ -133,5 +135,18 @@ func (cr *streamReader) start() {
 }
 
 func (cr *streamReader) run() {
+	t := cr.typ
+	for {
+		rc, err := cr.dial(t)
+		fmt.Println(rc)
+		fmt.Println(err)
+	}
+}
 
+func (cr *streamReader) dial(t streamType) (io.ReadCloser, error) {
+	u := cr.picker.pick()
+	uu := u
+	uu.Path = path.Join(t.endpoint(cr.lg), cr.tr.ID.String())
+	fmt.Println(uu.Path)
+	return nil, nil
 }

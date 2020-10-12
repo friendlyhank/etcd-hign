@@ -41,6 +41,8 @@ type peer struct {
 	// id of the remote raft peer node 除本地节点外的某个节点
 	id types.ID
 
+	picker *urlPicker
+
 	msgAppV2Writer *streamWriter
 	writer         *streamWriter
 	msgAppV2Reader *streamReader
@@ -48,9 +50,12 @@ type peer struct {
 }
 
 func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
+	picker := newURLPicker(urls)
+
 	p := &peer{
 		localID:        t.ID,
 		id:             peerID,
+		picker:         picker,
 		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID), //启动streamv2写入流
 		writer:         startStreamWriter(t.Logger, t.ID, peerID), //启动stream写入流
 	}
@@ -60,6 +65,7 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		peerID: peerID,
 		typ:    streamTypeMsgAppV2,
 		tr:     t,
+		picker: picker,
 	}
 
 	p.msgAppReader = &streamReader{
@@ -67,6 +73,7 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		peerID: peerID,
 		typ:    streamTypeMessage,
 		tr:     t,
+		picker: picker,
 	}
 
 	p.msgAppV2Reader.start()

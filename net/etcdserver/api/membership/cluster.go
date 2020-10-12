@@ -74,5 +74,9 @@ func (m *Member) Clone() *Member {
 			Name: m.Name,
 		},
 	}
+	if m.PeerURLs != nil {
+		mm.PeerURLs = make([]string, len(m.PeerURLs))
+		copy(mm.PeerURLs, m.PeerURLs)
+	}
 	return mm
 }
