@@ -17,6 +17,8 @@ import (
 const (
 	streamTypeMessage  streamType = "message"
 	streamTypeMsgAppV2 streamType = "msgappv2"
+
+	streamBufSize = 4096
 )
 
 type streamType string //流的类型 v2|v3的流
@@ -73,7 +75,10 @@ func startStreamWriter(lg *zap.Logger, local, id types.ID) *streamWriter {
 	w := &streamWriter{
 		localID: local,
 		peerID:  id,
+		msgc:    make(chan raftpb.Message, streamBufSize),
 		connc:   make(chan *outgoingConn),
+		stopc:   make(chan struct{}),
+		done:    make(chan struct{}),
 	}
 	go w.run()
 	return w
@@ -90,11 +95,14 @@ func (cw *streamWriter) run() {
 	defer tickc.Stop()
 	for {
 		select {
+		case m := <-msgc: //
+			fmt.Println(m)
+			continue //发送完成之后返回上层，并没有结束对话
 		case conn := <-cw.connc:
 			flusher = conn.Flusher
+			cw.working = true //获得连接之后进入工作状态
 			heartbeatc, msgc = tickc.C, cw.msgc
 			fmt.Println(flusher)
-			fmt.Println(msgc)
 			fmt.Println(heartbeatc)
 		}
 	}
