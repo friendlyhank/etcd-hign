@@ -147,6 +147,16 @@ func (cr *streamReader) dial(t streamType) (io.ReadCloser, error) {
 	u := cr.picker.pick()
 	uu := u
 	uu.Path = path.Join(t.endpoint(cr.lg), cr.tr.ID.String())
-	fmt.Println(uu.Path)
+
+	req,err := http.NewRequest("GET",uu.String(),nil)
+	if err != nil{
+
+	}
+	resp,err := cr.tr.streamRt.RoundTrip(req)
+	if err != nil{
+		return nil,err
+	}
+	fmt.Println(resp)
+
 	return nil, nil
 }

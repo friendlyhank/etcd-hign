@@ -31,11 +31,19 @@ type Transport struct {
 	Logger *zap.Logger
 
 	ID    types.ID          //local member ID 当前节点的唯一id
+
+	streamRt http.RoundTripper //roundTripper used by streams
+
 	mu    sync.RWMutex      //protect the remote and peer map
 	peers map[types.ID]Peer //peers map
 }
 
 func (t *Transport) Start() error {
+	var err error
+	t.streamRt,err =newStreamRoundTripper()
+	if err != nil{
+		return err
+	}
 	t.peers = make(map[types.ID]Peer)
 	return nil
 }
