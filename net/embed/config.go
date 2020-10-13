@@ -32,10 +32,9 @@ func NewConfig() *Config {
 	lpurl, _ := url.Parse(DefaultListenPeerURLs)
 	lcurl, _ := url.Parse(DefaultListenClientURLs)
 	cfg := &Config{
-		Name:   DefaultName,
-		LPUrls: []url.URL{*lpurl},
-		LCUrls: []url.URL{*lcurl},
-		//TODO Hank这个参数为啥解析不了
+		Name:                DefaultName,
+		LPUrls:              []url.URL{*lpurl},
+		LCUrls:              []url.URL{*lcurl},
 		InitialCluster:      "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
 		InitialClusterToken: "etcd-cluster-1",
 		loggerMu:            new(sync.RWMutex),
@@ -48,4 +47,8 @@ func (cfg *Config) PeerURLsMapAndToken(which string) (urlsmap types.URLsMap, tok
 	token = cfg.InitialClusterToken
 	urlsmap, err = types.NewURLsMap(cfg.InitialCluster)
 	return urlsmap, token, err
+}
+
+func (cfg *Config) Validate() error {
+	return nil
 }
