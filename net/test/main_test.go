@@ -18,13 +18,13 @@ func TestSingleEtcdMain(t *testing.T) {
 //生产环境中端口应该是一样的，IP不同
 //启动测试服务1
 func StartInfraOServer() {
-	os.Args = []string{"etcd-3.3.12-test", "--name", "infraO",
+	os.Args = []string{"etcd-3.3.12-test", "--name", "infra0",
 		"--initial-advertise-peer-urls", "http://127.0.0.1:2380",
 		"--listen-peer-urls", "http://127.0.0.1:2380",
 		"--listen-client-urls", "http://127.0.0.1:2379",
 		"--advertise-client-urls", "http://127.0.0.1:2379",
 		"--initial-cluster-token", "etcd-cluster-1",
-		"--initial-cluster", "infraO=http://127.0.0.1:2380,infral=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
+		"--initial-cluster", "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
 		"--initial-cluster-state", "new"}
 	etcdmain.Main() //服务端主入口
 }
@@ -36,8 +36,7 @@ func StartInfra1Server() {
 		"--listen-client-urls", "http://127.0.0.1:2381",
 		"--advertise-client-urls", "http://127.0.0.1:2381",
 		"--initial-cluster-token", "etcd-cluster-1",
-		"--initial-cluster", "infraO=http://127.0.0.1:2380,infral=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
-		"--initial-cluster", "infraO=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
+		"--initial-cluster", "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
 		"--initial-cluster-state", "new"}
 	etcdmain.Main() //服务端主入口
 }
@@ -49,7 +48,7 @@ func StartInfra2Server() {
 		"--listen-client-urls", "http://127.0.0.1:2383",
 		"--advertise-client-urls", "http://127.0.0.1:2383",
 		"--initial-cluster-token", "etcd-cluster-1",
-		"--initial-cluster", "infraO=http://127.0.0.1:2380,infral=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
+		"--initial-cluster", "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
 		"--initial-cluster-state", "new"}
 	etcdmain.Main() //服务端主入口
 }

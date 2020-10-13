@@ -148,15 +148,14 @@ func (cr *streamReader) dial(t streamType) (io.ReadCloser, error) {
 	uu := u
 	uu.Path = path.Join(t.endpoint(cr.lg), cr.tr.ID.String())
 
-	req,err := http.NewRequest("GET",uu.String(),nil)
-	if err != nil{
+	req, err := http.NewRequest("GET", uu.String(), nil)
+	if err != nil {
 
 	}
-	resp,err := cr.tr.streamRt.RoundTrip(req)
-	if err != nil{
-		return nil,err
+	resp, err := cr.tr.streamRt.RoundTrip(req)
+	if err != nil {
+		return nil, err
 	}
 	fmt.Println(resp)
-
 	return nil, nil
 }

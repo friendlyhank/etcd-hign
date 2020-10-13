@@ -35,12 +35,11 @@ func NewConfig() *Config {
 		Name:   DefaultName,
 		LPUrls: []url.URL{*lpurl},
 		LCUrls: []url.URL{*lcurl},
-
-		InitialCluster:      "infraO=http://127.0.0.1:2380,infral=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
+		//TODO Hank这个参数为啥解析不了
+		InitialCluster:      "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
 		InitialClusterToken: "etcd-cluster-1",
-
-		loggerMu: new(sync.RWMutex),
-		logger:   nil,
+		loggerMu:            new(sync.RWMutex),
+		logger:              nil,
 	}
 	return cfg
 }

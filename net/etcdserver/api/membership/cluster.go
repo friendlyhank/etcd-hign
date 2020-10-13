@@ -54,9 +54,11 @@ func (c *RaftCluster) MemberByName(name string) *Member {
 	var memb *Member
 	for _, m := range c.members {
 		if m.Name == name {
+			if memb != nil {
 
+			}
+			memb = m
 		}
-		memb = m
 	}
 	return memb.Clone()
 }
