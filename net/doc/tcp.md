@@ -47,6 +47,13 @@ stream消息通道维护HTTP长连接，主要负责传输数据小、发送比�
 peer对应的是多个流
     msgAppV2Writer v2的写入流
     writer 最新版本的写入流
+    
+在peer.start()方法中通过调用startStreamWriter()方法初始化并启动streamWriter实例，其中还启动了一个后台goroutine来执行
+streamWriter.run()方法中，主要完成了下面三件事：
+(1)当其他节点与当前节点创建连接时,该连接实例会写入对应peer.writer.conn通道，在streamWriter.run()方法中通过该通道获取该连接之后进行绑定
+,之后才能开始后续的消息发送。
+(2)定时发送心跳
+    
     msgAppV2Reader v2的读取流
     msgAppReader 最新版本的读取流
 
