@@ -46,8 +46,8 @@ func (n *node) run() {
 	n.rn.raft.msgs = []pb.Message{
 		pb.Message{
 			Type: pb.MsgVote,
-			To:   5751989205868428943,
-			From: 1849879258734672239,
+			To:   1849879258734672239,
+			From: 5751989205868428943,
 		},
 	}
 

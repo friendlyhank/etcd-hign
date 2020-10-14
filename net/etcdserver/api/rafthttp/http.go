@@ -57,8 +57,8 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid from", http.StatusNotFound)
 		return
 	}
-	//获取指定的peer TODO HANK写死编号 1849879258734672239
-	p := h.peerGetter.Get(types.ID(1849879258734672239))
+	//获取指定的peer
+	p := h.peerGetter.Get(from)
 	if p == nil {
 		http.Error(w, "error sender not found", http.StatusNotFound)
 		return
