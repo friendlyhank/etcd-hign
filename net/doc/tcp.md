@@ -60,19 +60,9 @@ peer对应的是多个流
 - accept接收客户端连接
 - 启动线程为客户端服务
 
-## 主要过程
-三个节点A,B,C
-当nodeA处于准备准备状态,则会发送消息给B,C投票
-        from:A
-        To:B
-        
-        form:A
-        To:C
 
-在底层网络启动的时候,peer.msgAppReader首先回去尝试连接,会在url中带上节点id信息
-        from:url的节点id
-        to:B,C
+## 问题点记录
+这个还能定时不断发吗？
+通过http.flush发送
 
-在底层网络启动的时候，peer.writer网络处于接收状态
-     from:url的节点id B,C
-     to:当前节点 A
+获得连接之后http.flush的消息又是在哪里去接收呢
