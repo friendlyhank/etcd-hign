@@ -2,19 +2,13 @@
 type node struct {
 	propc      chan msgWithResult
 	recvc      chan pb.Message
-	confc      chan pb.ConfChangeV2
-	confstatec chan pb.ConfState
-	readyc     chan Ready
+	readyc     chan Ready //节点的就绪状态,只有就绪时候才能去发送消息
 	advancec   chan struct{}
 	tickc      chan struct{}
-	done       chan struct{}
-	stop       chan struct{}
-	status     chan chan Status
-
 	rn *RawNode
 }
-彻底理解结构体propc,recvc,readyc
 
+彻底理解结构体propc,recvc,readyc
 propc应该是发送消息的结果
 recvc发送消息
 ready消息的准备体
@@ -31,15 +25,25 @@ node会有对应的raft协议，然后去对应的发送消息
 transport是网络的核心组件，所有我网络入口都会先进入transport
 transport作为最中间的一层
 
-然后transport对应三大Handle
+### 初始化和启动
+new一个http.RoundTripper来完成一个http事务,就是客户端发送一个Http Request到服务端,
+服务端处理完请求之后，返回相应的HTTP Response的过程
+t.streamRt, err = newStreamRoundTripper(t.TLSInfo, t.DialTimeout)
+t.pipelineRt, err = NewRoundTripper(t.TLSInfo, t.DialTimeout)
+
+Transport RoundTripper可以处理不同的协议
+
+然后transport对应三大
+Handle客户端的处理逻辑和相应逻辑
 pipelinehandle
 streamhandle
 snaphandle
 
-每个handle会走到对象的peer节点
-
 ## peer 
-### stream 流发送少量消息 用完不会立刻关闭
+stream消息通道维护HTTP长连接，主要负责传输数据小、发送比较频繁的消息，例如MsgApp消息、MsgHeartbeat消息、MsgVote消息等;
+而Pipleline消息通道在传输数据完成之后会立即关闭连接，主要负责数据量大、发送频率较低的消息,例如:MsgSnap消息等。
+
+### stream
 peer对应的是多个流
     msgAppV2Writer v2的写入流
     writer 最新版本的写入流
@@ -66,3 +70,4 @@ peer对应的是多个流
 通过http.flush发送
 
 获得连接之后http.flush的消息又是在哪里去接收呢
+答:最后的连接会进入到peer.recvc去接收
