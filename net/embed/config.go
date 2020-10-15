@@ -51,6 +51,8 @@ func NewConfig() *Config {
 		Logger:   "zap",
 		LogLevel: logutil.DefaultLogLevel,
 	}
+	//Hank diff
+	cfg.logger, _ = zap.NewProduction()
 	return cfg
 }
 

@@ -13,6 +13,7 @@ func startEtcdOrProxyV2() {
 	cfg := newConfig()
 
 	err := cfg.parse(os.Args[1:])
+
 	//启动日志组件
 	lg := cfg.ec.GetLogger()
 	if lg == nil {
