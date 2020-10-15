@@ -151,9 +151,29 @@ func (e *Etcd) servePeers() (err error) {
 	return nil
 }
 
-func (e *Etcd) serveClients() (err error) {
+func (e *Etcd) serveClients(cfg *Config) (sctxs map[string]*serveCtx, err error) {
+	sctxs = make(map[string]*serveCtx)
+	for _, u := range cfg.LCUrls {
+		sctx := newServeCtx(cfg.logger)
+		network := "tcp"
+		addr := u.Host
+		if u.Scheme == "unix" || u.Scheme == "unixs" {
+			network = "unix"
+			addr = u.Host + u.Path
+		}
+		sctx.network = network
 
-	return nil
+		if sctx.l, err = net.Listen(network, addr); err != nil {
+			return nil, err
+		}
+		// net.Listener will rewrite ipv4 0.0.0.0 to ipv6 [::], breaking
+		// hosts that disable ipv6. So, use the address given by the user.
+		sctx.addr = addr
+		if network == "tcp" {
+			if sctx.l,err =
+		}
+	}
+	return sctxs, nil
 }
 
 func (e *Etcd) errHandler(err error) {

@@ -5,10 +5,13 @@ import (
 	"net"
 	"net/http"
 
+	"go.uber.org/zap"
+
 	"google.golang.org/grpc"
 )
 
 type serveCtx struct {
+	lg      *zap.Logger
 	l       net.Listener
 	addr    string
 	network string
@@ -17,9 +20,13 @@ type serveCtx struct {
 	cancel context.CancelFunc
 }
 
-func newServeCtx() *serveCtx {
+func newServeCtx(lg *zap.Logger) *serveCtx {
 	ctx, cancel := context.WithCancel(context.Background())
+	if lg == nil {
+		lg = zap.NewNop()
+	}
 	return &serveCtx{
+		lg:     lg,
 		ctx:    ctx,
 		cancel: cancel,
 	}
