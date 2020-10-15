@@ -14,7 +14,7 @@ var (
 // LimitListener returns a Listener that accepts at most n simultaneous
 // connections from the provided Listener.
 func LimitListener(l net.Listener, n int) net.Listener {
-	return &LimitListener(l, make(chan struct{}, n))
+	return &limitListener{l, make(chan struct{}, n)}
 }
 
 type limitListener struct {

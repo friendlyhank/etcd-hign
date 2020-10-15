@@ -10,9 +10,25 @@ import (
 	"github.com/friendlyhank/etcd-hign/net/etcdserver"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/etcdhttp"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
+	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"github.com/soheilhy/cmux"
+	runtimeutil "go.etcd.io/etcd/v3/pkg/runtime"
 	"go.uber.org/zap"
+)
+
+const (
+	// internal fd usage includes disk usage and transport usage.
+	// To read/write snapshot, snap pkg needs 1. In normal case, wal pkg needs
+	// at most 2 to read/lock/write WALs. One case that it needs to 2 is to
+	// read all logs after some snapshot index, which locates at the end of
+	// the second last and the head of the last. For purging, it needs to read
+	// directory, so it needs 1. For fd monitor, it needs 1.
+	// For transport, rafthttp builds two long-polling connections and at most
+	// four temporary connections with each member. There are at most 9 members
+	// in a cluster, so it should reserve 96.
+	// For the safety, we set the total reserved number to 150.
+	reservedInternalFDNum = 150
 )
 
 type Etcd struct {
@@ -151,7 +167,7 @@ func (e *Etcd) servePeers() (err error) {
 	return nil
 }
 
-func (e *Etcd) serveClients(cfg *Config) (sctxs map[string]*serveCtx, err error) {
+func (e *Etcd) configureClientListeners(cfg *Config) (sctxs map[string]*serveCtx, err error) {
 	sctxs = make(map[string]*serveCtx)
 	for _, u := range cfg.LCUrls {
 		sctx := newServeCtx(cfg.logger)
@@ -164,12 +180,30 @@ func (e *Etcd) serveClients(cfg *Config) (sctxs map[string]*serveCtx, err error)
 		sctx.network = network
 		sctx.secure = u.Scheme == "https" || u.Scheme == "unixs"
 		sctx.insecure = !sctx.secure
+		if oldctx := sctxs[addr]; oldctx != nil {
+			oldctx.secure = oldctx.secure || sctx.secure
+			oldctx.insecure = oldctx.insecure || sctx.insecure
+			//进来这里则是已经建立过连接
+			continue
+		}
 		if sctx.l, err = net.Listen(network, addr); err != nil {
 			return nil, err
 		}
 		// net.Listener will rewrite ipv4 0.0.0.0 to ipv6 [::], breaking
 		// hosts that disable ipv6. So, use the address given by the user.
 		sctx.addr = addr
+
+		if fdLimit, fderr := runtimeutil.FDLimit(); fderr == nil {
+			if fdLimit <= reservedInternalFDNum {
+				cfg.logger.Fatal(
+					"file descriptor limit of etcd process is too low; please set higher",
+					zap.Uint64("limit", fdLimit),
+					zap.Int("recommended-limit", reservedInternalFDNum),
+				)
+			}
+			sctx.l = transport.LimitListener(sctx.l, int(fdLimit-reservedInternalFDNum))
+		}
+
 		if network == "tcp" {
 		}
 	}
