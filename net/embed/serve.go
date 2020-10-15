@@ -11,10 +11,12 @@ import (
 )
 
 type serveCtx struct {
-	lg      *zap.Logger
-	l       net.Listener
-	addr    string
-	network string
+	lg       *zap.Logger
+	l        net.Listener
+	addr     string
+	network  string
+	secure   bool //标记网络的安全性 https||unixs为安全
+	insecure bool //标记网络是否不安全
 
 	ctx    context.Context
 	cancel context.CancelFunc

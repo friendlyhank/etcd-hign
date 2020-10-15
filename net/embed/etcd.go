@@ -162,7 +162,8 @@ func (e *Etcd) serveClients(cfg *Config) (sctxs map[string]*serveCtx, err error)
 			addr = u.Host + u.Path
 		}
 		sctx.network = network
-
+		sctx.secure = u.Scheme == "https" || u.Scheme == "unixs"
+		sctx.insecure = !sctx.secure
 		if sctx.l, err = net.Listen(network, addr); err != nil {
 			return nil, err
 		}
@@ -170,7 +171,6 @@ func (e *Etcd) serveClients(cfg *Config) (sctxs map[string]*serveCtx, err error)
 		// hosts that disable ipv6. So, use the address given by the user.
 		sctx.addr = addr
 		if network == "tcp" {
-			if sctx.l,err =
 		}
 	}
 	return sctxs, nil
