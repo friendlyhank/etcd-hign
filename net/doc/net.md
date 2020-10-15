@@ -3,8 +3,6 @@ type node struct {
 	propc      chan msgWithResult
 	recvc      chan pb.Message
 	readyc     chan Ready //节点的就绪状态,只有就绪时候才能去发送消息
-	advancec   chan struct{}
-	tickc      chan struct{}
 	rn *RawNode
 }
 
@@ -72,9 +70,6 @@ streamWriter.run()方法中，主要完成了下面三件事：
 - 启动线程为客户端服务
 
 
-## 问题点记录
-这个还能定时不断发吗？
-通过http.flush发送
+问题：
+具体这些消息会进入那些通道
 
-获得连接之后http.flush的消息又是在哪里去接收呢
-答:最后的连接会进入到peer.recvc去接收

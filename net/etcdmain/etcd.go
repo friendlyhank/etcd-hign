@@ -24,7 +24,8 @@ func startEtcdOrProxyV2() {
 		}
 	}
 	if err != nil {
-
+		lg.Warn("failed to verify flags", zap.Error(err))
+		os.Exit(1)
 	}
 
 	var stopped <-chan struct{}

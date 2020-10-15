@@ -35,12 +35,24 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 	e = &Etcd{cfg: *inCfg}
 	cfg := &e.cfg
 	defer func() {
+		if e == nil || err == nil {
+			return
+		}
 	}()
 
+	e.cfg.logger.Info(
+		"configuring peer listeners",
+		zap.Strings("listen-peer-urls", e.cfg.getLPURLs()),
+	)
 	//集群Listeners
 	if e.Peers, err = configurePeerListeners(cfg); err != nil {
 		return e, err
 	}
+
+	e.cfg.logger.Info(
+		"configuring client listeners",
+		zap.Strings("listen-clents-urls", e.cfg.getLCURLs()),
+	)
 
 	var (
 		urlsmap types.URLsMap
@@ -80,6 +92,22 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 func configurePeerListeners(cfg *Config) (peers []*peerListener, err error) {
 	peers = make([]*peerListener, len(cfg.LPUrls))
 	defer func() {
+		if err != nil {
+			return
+		}
+		for i := range peers {
+			//关闭连接
+			for peers[i] != nil && peers[i].close != nil {
+				cfg.logger.Warn(
+					"closing peer listener",
+					zap.String("address", cfg.LPUrls[i].String()),
+					zap.Error(err),
+				)
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				peers[i].close(ctx)
+				cancel()
+			}
+		}
 	}()
 
 	for i, u := range cfg.LPUrls {
