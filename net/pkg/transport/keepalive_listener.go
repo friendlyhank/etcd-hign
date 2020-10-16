@@ -27,12 +27,35 @@ func NewKeepAliveListener(l net.Listener, scheme string, tlscfg *tls.Config) (ne
 type keepaliveListener struct{ net.Listener }
 
 func (kln *keepaliveListener) Accept() (net.Conn, error) {
+	c, err := kln.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	kac := c.(keepAliveConn)
+	// detection time: tcp_keepalive_time + tcp_keepalive_probes + tcp_keepalive_intvl
+	// default on linux:  30 + 8 * 30
+	// default on osx:    30 + 8 * 75
+	kac.SetKeepAlive(true)
+	kac.SetKeepAlivePeriod(30 * time.Second)
 	return c, nil
 }
 
 type tlsKeepaliveListener struct {
 	net.Listener
 	config *tls.Config
+}
+
+func (l *tlsKeepaliveListener) Accept() (c net.Conn, err error) {
+	c, err = l.Listener.Accept()
+	if err != nil {
+		return
+	}
+	kac := c.(keepAliveConn)
+	// detection time: tcp_keepalive_time + tcp_keepalive_probes + tcp_keepalive_intvl
+	// default on linux:  30 + 8 * 30
+	// default on osx:    30 + 8 * 75
+	kac.SetKeepAlive(true)
+	kac.SetKeepAlivePeriod(30 * time.Second)
 }
 
 func newTLSKeepaliveListener(inner net.Listener, config *tls.Config) net.Listener {
