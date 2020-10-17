@@ -182,11 +182,43 @@ func SelfCert(lg *zap.Logger, dirpath string, hosts []string, additionalUsages .
 	return SelfCert(lg, dirpath, hosts)
 }
 
+// cafiles returns a list of CA file paths.
+func (info TLSInfo)cafiles()[]string{
+	cs := make([]string,0)
+	if info.TrustedCAFile != ""{
+		cs = append(cs,info.TrustedCAFile)
+	}
+	return cs
+}
+
 func (info TLSInfo) ServerConfig() (*tls.Config, error) {
 	cfg, err := info.baseConfig()
 	if err != nil {
 		return nil, err
 	}
+
+	cfg.ClientAuth = tls.NoClientCert
+	if info.TrustedCAFile != "" || info.ClientCertAuth{
+		cfg.ClientAuth =  tls.RequireAndVerifyClientCert
+	}
+
+	cs := info.cafiles()
+	if len(cs) > 0{
+		cp,err :=tlsutil.NewCertPool(cs)
+		if err != nil{
+			return nil,err
+		}
+		cfg.ClientCAs = cp
+	}
+
+	// "h2" NextProtos is necessary for enabling HTTP2 for go's HTTP server
+	cfg.NextProtos = []string{"h2"}
+
+	// go1.13 enables TLS 1.3 by default
+	// and in TLS 1.3, cipher suites are not configurable
+	// setting Max TLS version to TLS 1.2 for go 1.13
+	cfg.MinVersion =tls.VersionTLS12
+
 	return cfg, nil
 }
 
@@ -261,5 +293,32 @@ func (info TLSInfo) baseConfig() (*tls.Config, error) {
 			return errors.New("client certificate authentication failed")
 		}
 	}
+
+	// this only reloads certs when there's a client request
+	// TODO: support server-side refresh (e.g. inotify, SIGHUP), caching
+	cfg.GetCertificate = func(clientHello *tls.ClientHelloInfo) (cert *tls.Certificate, err error) {
+		cert, err = tlsutil.NewCert(info.CertFile, info.KeyFile, info.parseFunc)
+		if os.IsNotExist(err){
+			if info.Logger != nil{
+				info.Logger.Warn(
+					"failed to find peer cert files",
+					zap.String("cert-file",info.CertFile),
+					zap.String("key-file",info.KeyFile),
+					zap.Error(err),
+					)
+			}
+		}else if err != nil{
+			if info.Logger != nil{
+				info.Logger.Warn(
+					"failed to find peer cert files",
+					zap.String("cert-file", info.CertFile),
+					zap.String("key-file", info.KeyFile),
+					zap.Error(err),
+					)
+			}
+		}
+		return cert,err
+	}
 	return cfg, nil
 }
+ 

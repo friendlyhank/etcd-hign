@@ -2,8 +2,36 @@ package tlsutil
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"io/ioutil"
 )
+
+func NewCertPool(CAFiles []string) (*x509.CertPool, error) {
+	certPool := x509.NewCertPool()
+
+	for _, CAFile := range CAFiles {
+		pemByte, err := ioutil.ReadFile(CAFile)
+		if err != nil {
+			return nil, err
+		}
+
+		for {
+			var block *pem.Block
+			block, pemByte = pem.Decode(pemByte)
+			if block == nil {
+				break
+			}
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return nil, err
+			}
+			certPool.AddCert(cert)
+		}
+	}
+
+	return certPool, nil
+}
 
 func NewCert(certfile, keyfile string, parseFunc func([]byte, []byte) (tls.Certificate, error)) (*tls.Certificate, error) {
 	cert, err := ioutil.ReadFile(certfile)
