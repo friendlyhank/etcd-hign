@@ -39,7 +39,10 @@ func wrapTLS(scheme string, tlsinfo *TLSInfo, l net.Listener) (net.Listener, err
 	if scheme != "https" && scheme != "unixs" {
 		return l, nil
 	}
-	return l, nil
+	if tlsinfo != nil && tlsinfo.SkipClientSANVerify{
+
+	}
+	return newTLSListener(l,tlsinfo,checkSAN)
 }
 
 type TLSInfo struct {
