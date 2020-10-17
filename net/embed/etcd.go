@@ -13,7 +13,7 @@ import (
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"github.com/soheilhy/cmux"
-	runtimeutil "go.etcd.io/etcd/v3/pkg/runtime"
+	runtimeutil "go.etcd.io/etcd/pkg/runtime"
 	"go.uber.org/zap"
 )
 
@@ -32,7 +32,10 @@ const (
 )
 
 type Etcd struct {
-	Peers []*peerListener
+	Peers   []*peerListener
+	Clients []net.Listener
+	// a map of contexts for the servers that serves client requests.
+	sctxs map[string]*serveCtx
 
 	Server *etcdserver.EtcdServer
 
@@ -69,6 +72,9 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 		"configuring client listeners",
 		zap.Strings("listen-clents-urls", e.cfg.getLCURLs()),
 	)
+	if e.sctxs, err = configureClientListeners(cfg); err != nil {
+		return e, err
+	}
 
 	var (
 		urlsmap types.URLsMap
@@ -86,7 +92,7 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 		InitialClusterToken: token,
 	}
 
-	//这里做的事情特别多
+	//这里注意做的事情特别多
 	//node start
 	//transport start
 	if e.Server, err = etcdserver.NewServer(srvcfg); err != nil {
@@ -108,7 +114,7 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 func configurePeerListeners(cfg *Config) (peers []*peerListener, err error) {
 	peers = make([]*peerListener, len(cfg.LPUrls))
 	defer func() {
-		if err != nil {
+		if err == nil {
 			return
 		}
 		for i := range peers {
@@ -167,7 +173,7 @@ func (e *Etcd) servePeers() (err error) {
 	return nil
 }
 
-func (e *Etcd) configureClientListeners(cfg *Config) (sctxs map[string]*serveCtx, err error) {
+func configureClientListeners(cfg *Config) (sctxs map[string]*serveCtx, err error) {
 	sctxs = make(map[string]*serveCtx)
 	for _, u := range cfg.LCUrls {
 		sctx := newServeCtx(cfg.logger)
@@ -205,7 +211,24 @@ func (e *Etcd) configureClientListeners(cfg *Config) (sctxs map[string]*serveCtx
 		}
 
 		if network == "tcp" {
+			if sctx.l, err = transport.NewKeepAliveListener(sctx.l, network, nil); err != nil {
+				return nil, err
+			}
 		}
+
+		defer func() {
+			if err == nil {
+				return
+			}
+			sctx.l.Close()
+			cfg.logger.Warn(
+				"closing peer listener",
+				zap.String("address", u.Host),
+				zap.Error(err),
+			)
+		}()
+
+		sctxs[addr] = sctx
 	}
 	return sctxs, nil
 }

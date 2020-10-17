@@ -56,6 +56,7 @@ func (l *tlsKeepaliveListener) Accept() (c net.Conn, err error) {
 	// default on osx:    30 + 8 * 75
 	kac.SetKeepAlive(true)
 	kac.SetKeepAlivePeriod(30 * time.Second)
+	return c, nil
 }
 
 func newTLSKeepaliveListener(inner net.Listener, config *tls.Config) net.Listener {
