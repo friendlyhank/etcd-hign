@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/etcdhttp"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
@@ -16,6 +17,8 @@ import (
 	runtimeutil "go.etcd.io/etcd/pkg/runtime"
 	"go.uber.org/zap"
 )
+
+var plog = capnslog.NewPackageLogger("github.com/friendlyhank/etcd-hign/net", "embed")
 
 const (
 	// internal fd usage includes disk usage and transport usage.
@@ -112,6 +115,16 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 
 // configurePeerListeners - 设置集群的监听
 func configurePeerListeners(cfg *Config) (peers []*peerListener, err error) {
+	if err = updateCipherSuites(&cfg.PeerTLSInfo, cfg.CipherSuites); err != nil {
+		return nil, err
+	}
+	if err = cfg.PeerSelfCert(); err != nil {
+		if cfg.logger != nil {
+			cfg.logger.Fatal("failed to get peer self-signed certs", zap.Error(err))
+		} else {
+			plog.Fatalf("could not get certs (%v)", err)
+		}
+	}
 	peers = make([]*peerListener, len(cfg.LPUrls))
 	defer func() {
 		if err == nil {

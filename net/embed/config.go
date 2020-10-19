@@ -1,10 +1,13 @@
 package embed
 
 import (
+	"fmt"
 	"net/url"
+	"path/filepath"
 	"sync"
 
 	"go.etcd.io/etcd/pkg/logutil"
+	"go.etcd.io/etcd/pkg/tlsutil"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
@@ -36,6 +39,11 @@ type Config struct {
 	ClientAutoTLS  bool //是否自动生成Client TLS
 	PeerTLSInfo    transport.TLSInfo
 	PeerAutoTLS    bool //是否自动生成Peer TLS
+
+	// CipherSuites is a list of supported TLS cipher suites between
+	// client/server and peers. If empty, Go auto-populates the list.
+	// Note that cipher suites are prioritized in the given order.
+	CipherSuites []string `json:"cipher-suites"`
 
 	InitialCluster      string `json:"initial-cluster"`
 	InitialClusterToken string `json:"initial-cluster-token"`
@@ -76,8 +84,72 @@ func (cfg *Config) PeerURLsMapAndToken(which string) (urlsmap types.URLsMap, tok
 	return urlsmap, token, err
 }
 
+func updateCipherSuites(tls *transport.TLSInfo, ss []string) error {
+	if len(tls.CipherSuites) > 0 && len(ss) > 0 {
+		return fmt.Errorf("TLSInfo.CipherSuites is already specified (given %v)", ss)
+	}
+	if len(ss) > 0 {
+		cs := make([]uint16, len(ss))
+		for i, s := range ss {
+			var ok bool
+			cs[i], ok = tlsutil.GetCipherSuite(s)
+			if !ok {
+				return fmt.Errorf("unexpected TLS cipher suite %q", s)
+			}
+		}
+		tls.CipherSuites = cs
+	}
+	return nil
+}
+
 func (cfg *Config) Validate() error {
 	return nil
+}
+
+func (cfg *Config) ClientSelfCert() (err error) {
+	if !cfg.ClientAutoTLS {
+		return nil
+	}
+	if !cfg.ClientTLSInfo.Empty() {
+		if cfg.logger != nil {
+			cfg.logger.Warn("ignoring client auto TLS since certs given")
+		} else {
+			plog.Warningf("ignoring client auto TLS since certs given")
+		}
+		return nil
+	}
+	chosts := make([]string, len(cfg.LCUrls))
+	for i, u := range cfg.LCUrls {
+		chosts[i] = u.Host
+	}
+	cfg.ClientTLSInfo, err = transport.SelfCert(cfg.logger, filepath.Join(cfg.Dir, "fixtures", "client"), chosts)
+	if err != nil {
+		return err
+	}
+	return updateCipherSuites(&cfg.ClientTLSInfo, cfg.CipherSuites)
+}
+
+func (cfg *Config) PeerSelfCert() (err error) {
+	if !cfg.PeerAutoTLS {
+		return nil
+	}
+	if !cfg.PeerTLSInfo.Empty() {
+		if cfg.logger != nil {
+			cfg.logger.Warn("ignoring peer auto TLS since certs given")
+		} else {
+			plog.Warningf("ignoring peer auto TLS since certs given")
+		}
+		return nil
+	}
+	phosts := make([]string, len(cfg.LPUrls))
+	for i, u := range cfg.LPUrls {
+		phosts[i] = u.Host
+	}
+	cfg.PeerTLSInfo, err = transport.SelfCert(cfg.logger, filepath.Join(cfg.Dir, "fixtures", "peer"), phosts)
+	if err != nil {
+		return err
+	}
+	return updateCipherSuites(&cfg.PeerTLSInfo, cfg.CipherSuites)
 }
 
 func (cfg *Config) getLPURLs() (ss []string) {
