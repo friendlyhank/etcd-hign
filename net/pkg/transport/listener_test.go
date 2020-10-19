@@ -47,6 +47,7 @@ func testNewListenerTLSInfoAccept(t *testing.T, tlsInfo TLSInfo) {
 	}
 	defer ln.Close()
 
+	//TLS不验证服务器身份即访问
 	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	cli := http.Client{Transport: tr}
 	go cli.Get("https://" + ln.Addr().String())
