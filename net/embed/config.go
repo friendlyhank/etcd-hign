@@ -12,16 +12,30 @@ import (
 )
 
 const (
+	ClusterStateFlagNew      = "new"
+	ClusterStateFlagExisting = "existing"
+
 	DefaultName = "default"
 
 	DefaultListenPeerURLs   = "http://localhost:2380"
 	DefaultListenClientURLs = "http://localhost:2379"
 )
 
+var (
+	DefaultInitialAdvertisePeerURLs = "http://localhost:2380"
+	DefaultAdvertiseClientURLs      = "http://localhost:2379"
+)
+
 type Config struct {
-	Name           string `json:"name"`
-	PeerTLSInfo    transport.TLSInfo
+	Name   string `json:"name"`
+	Dir    string `json:"data-dir"` //数据目录的路径
+	WalDir string `json:"wal-dir"`  //WAL文件专用目录
+
 	LPUrls, LCUrls []url.URL
+	ClientTLSInfo  transport.TLSInfo
+	ClientAutoTLS  bool //是否自动生成Client TLS
+	PeerTLSInfo    transport.TLSInfo
+	PeerAutoTLS    bool //是否自动生成Peer TLS
 
 	InitialCluster      string `json:"initial-cluster"`
 	InitialClusterToken string `json:"initial-cluster-token"`
