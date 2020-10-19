@@ -39,10 +39,10 @@ func wrapTLS(scheme string, tlsinfo *TLSInfo, l net.Listener) (net.Listener, err
 	if scheme != "https" && scheme != "unixs" {
 		return l, nil
 	}
-	if tlsinfo != nil && tlsinfo.SkipClientSANVerify{
-
+	if tlsinfo != nil && tlsinfo.SkipClientSANVerify {
+		return NewTLSListener(l, tlsinfo)
 	}
-	return newTLSListener(l,tlsinfo,checkSAN)
+	return newTLSListener(l, tlsinfo, checkSAN)
 }
 
 type TLSInfo struct {
@@ -186,10 +186,10 @@ func SelfCert(lg *zap.Logger, dirpath string, hosts []string, additionalUsages .
 }
 
 // cafiles returns a list of CA file paths.
-func (info TLSInfo)cafiles()[]string{
-	cs := make([]string,0)
-	if info.TrustedCAFile != ""{
-		cs = append(cs,info.TrustedCAFile)
+func (info TLSInfo) cafiles() []string {
+	cs := make([]string, 0)
+	if info.TrustedCAFile != "" {
+		cs = append(cs, info.TrustedCAFile)
 	}
 	return cs
 }
@@ -201,15 +201,15 @@ func (info TLSInfo) ServerConfig() (*tls.Config, error) {
 	}
 
 	cfg.ClientAuth = tls.NoClientCert
-	if info.TrustedCAFile != "" || info.ClientCertAuth{
-		cfg.ClientAuth =  tls.RequireAndVerifyClientCert
+	if info.TrustedCAFile != "" || info.ClientCertAuth {
+		cfg.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 
 	cs := info.cafiles()
-	if len(cs) > 0{
-		cp,err :=tlsutil.NewCertPool(cs)
-		if err != nil{
-			return nil,err
+	if len(cs) > 0 {
+		cp, err := tlsutil.NewCertPool(cs)
+		if err != nil {
+			return nil, err
 		}
 		cfg.ClientCAs = cp
 	}
@@ -220,7 +220,7 @@ func (info TLSInfo) ServerConfig() (*tls.Config, error) {
 	// go1.13 enables TLS 1.3 by default
 	// and in TLS 1.3, cipher suites are not configurable
 	// setting Max TLS version to TLS 1.2 for go 1.13
-	cfg.MinVersion =tls.VersionTLS12
+	cfg.MinVersion = tls.VersionTLS12
 
 	return cfg, nil
 }
@@ -301,27 +301,26 @@ func (info TLSInfo) baseConfig() (*tls.Config, error) {
 	// TODO: support server-side refresh (e.g. inotify, SIGHUP), caching
 	cfg.GetCertificate = func(clientHello *tls.ClientHelloInfo) (cert *tls.Certificate, err error) {
 		cert, err = tlsutil.NewCert(info.CertFile, info.KeyFile, info.parseFunc)
-		if os.IsNotExist(err){
-			if info.Logger != nil{
-				info.Logger.Warn(
-					"failed to find peer cert files",
-					zap.String("cert-file",info.CertFile),
-					zap.String("key-file",info.KeyFile),
-					zap.Error(err),
-					)
-			}
-		}else if err != nil{
-			if info.Logger != nil{
+		if os.IsNotExist(err) {
+			if info.Logger != nil {
 				info.Logger.Warn(
 					"failed to find peer cert files",
 					zap.String("cert-file", info.CertFile),
 					zap.String("key-file", info.KeyFile),
 					zap.Error(err),
-					)
+				)
+			}
+		} else if err != nil {
+			if info.Logger != nil {
+				info.Logger.Warn(
+					"failed to find peer cert files",
+					zap.String("cert-file", info.CertFile),
+					zap.String("key-file", info.KeyFile),
+					zap.Error(err),
+				)
 			}
 		}
-		return cert,err
+		return cert, err
 	}
 	return cfg, nil
 }
- 
