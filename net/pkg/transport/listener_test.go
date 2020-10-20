@@ -67,3 +67,10 @@ func testNewListenerTLSInfoAccept(t *testing.T, tlsInfo TLSInfo) {
 		t.Error("failed to accept *tls.Conn")
 	}
 }
+
+func TestNewListenerTLSEmptyInfo(t *testing.T){
+	_,err := NewListener("127.0.0.1:0","https",nil)
+	if err == nil{
+		t.Errorf("err = nil,want not presented error")
+	}
+}
