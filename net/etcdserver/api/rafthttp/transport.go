@@ -151,6 +151,17 @@ func (t *Transport) AddPeer(id types.ID, us []string) {
 	}
 	urls, err := types.NewURLs(us)
 	if err != nil {
+		if t.Logger != nil {
+			t.Logger.Panic("failed NewURLs", zap.Strings("urls", us), zap.Error(err))
+		}
 	}
 	t.peers[id] = startPeer(t, urls, id)
+	if t.Logger != nil {
+		t.Logger.Info(
+			"added remote peer",
+			zap.String("local-member-id", t.ID.String()),
+			zap.String("remote-peer-id", id.String()),
+			zap.Strings("remote-peer-urls", us),
+		)
+	}
 }

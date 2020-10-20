@@ -1,7 +1,9 @@
 package rafthttp
 
 import (
+	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
@@ -21,6 +23,8 @@ const (
 	// put back to http pkg connection pool.
 	ConnReadTimeout  = 5 * time.Second
 	ConnWriteTimeout = 5 * time.Second
+
+	recvBufSize = 4096
 
 	streamAppV2 = "streamMsgAppV2"
 	streamMsg   = "streamMsg"
@@ -55,6 +59,14 @@ type peer struct {
 	pipeline       *pipeline
 	msgAppV2Reader *streamReader
 	msgAppReader   *streamReader
+
+	recvc chan raftpb.Message
+	propc chan raftpb.Message
+
+	mu sync.Mutex
+
+	cancel context.CancelFunc // cancel pending works in go routine created by peer.
+	stopc  chan struct{}
 }
 
 func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
@@ -68,12 +80,24 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 	}()
 	picker := newURLPicker(urls)
 
+	pipeline := &pipeline{
+		peerID: peerID,
+		tr:     t,
+		picker: picker,
+	}
+	//启动pipeline start
+	pipeline.start()
+
 	p := &peer{
+		lg:             t.Logger,
 		localID:        t.ID,
 		id:             peerID,
 		picker:         picker,
 		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID), //启动streamv2写入流
 		writer:         startStreamWriter(t.Logger, t.ID, peerID), //启动stream写入流
+		pipeline:       pipeline,
+		recvc:          make(chan raftpb.Message, recvBufSize),
+		stopc:          make(chan struct{}),
 	}
 
 	p.msgAppV2Reader = &streamReader{
@@ -82,6 +106,8 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		typ:    streamTypeMsgAppV2,
 		tr:     t,
 		picker: picker,
+		recvc:  p.recvc,
+		propc:  p.propc,
 	}
 
 	p.msgAppReader = &streamReader{
@@ -90,6 +116,8 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		typ:    streamTypeMessage,
 		tr:     t,
 		picker: picker,
+		recvc:  p.recvc,
+		propc:  p.propc,
 	}
 
 	p.msgAppV2Reader.start()

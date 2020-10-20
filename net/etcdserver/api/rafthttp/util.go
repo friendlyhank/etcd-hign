@@ -1,12 +1,18 @@
 package rafthttp
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
+)
+
+var (
+	errMemberRemoved  = fmt.Errorf("the member has been permanently removed from the cluster")
+	errMemberNotFound = fmt.Errorf("member not found")
 )
 
 func NewListener(u url.URL, tlsinfo *transport.TLSInfo) (net.Listener, error) {

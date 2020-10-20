@@ -1,6 +1,7 @@
 package rafthttp
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,6 +48,13 @@ func (t streamType) String() string {
 		return "unknown stream"
 	}
 }
+
+var (
+	// linkHeartbeatMessage is a special message used as heartbeat message in
+	// link layer. It never conflicts with messages from raft because raft
+	// doesn't send out messages without From and To fields.
+	linkHeartbeatMessage = raftpb.Message{Type: raftpb.MsgHeartbeat}
+)
 
 type outgoingConn struct {
 	t streamType //流的类型
@@ -126,20 +134,83 @@ type streamReader struct {
 
 	tr     *Transport
 	picker *urlPicker
+	recvc  chan<- raftpb.Message
+	propc  chan<- raftpb.Message
 
-	mu sync.Mutex
+	mu     sync.Mutex
+	closer io.Closer
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 func (cr *streamReader) start() {
+	cr.done = make(chan struct{})
+	if cr.ctx == nil {
+		cr.ctx, cr.cancel = context.WithCancel(context.Background())
+	}
 	go cr.run()
 }
 
 func (cr *streamReader) run() {
 	t := cr.typ
+
+	if cr.lg != nil {
+		cr.lg.Info(
+			"started stream reader with remote peer",
+			zap.String("stream-reader-type", t.String()),
+			zap.String("local-member-id", cr.tr.ID.String()),
+			zap.String("remote-peer-id", cr.peerID.String()),
+		)
+	}
+
 	for {
 		rc, err := cr.dial(t)
-		fmt.Println(rc)
-		fmt.Println(err)
+		if err != nil {
+
+		} else {
+			if cr.lg != nil {
+				cr.lg.Info(
+					"established TCP streaming connection with remote peer",
+					zap.String("stream-reader-type", cr.typ.String()),
+					zap.String("local-member-id", cr.tr.ID.String()),
+					zap.String("remote-peer-id", cr.peerID.String()),
+				)
+			}
+			err = cr.decodeLoop(rc, t)
+		}
+	}
+}
+
+func (cr *streamReader) decodeLoop(rc io.ReadCloser, t streamType) error {
+	var dec decoder
+	cr.mu.Lock()
+	//根据stream类型，创建不同解码器
+	switch t {
+	case streamTypeMsgAppV2:
+		dec = newMsgAppV2Decoder(rc, cr.tr.ID, cr.peerID)
+	case streamTypeMessage:
+		dec = &messageDecoder{r: rc}
+	default:
+		if cr.lg != nil {
+			cr.lg.Panic("unknown stream type", zap.String("type", t.String()))
+		}
+	}
+	select {
+	case <-cr.ctx.Done():
+		cr.mu.Unlock()
+		if err := rc.Close(); err != nil {
+			return err
+		}
+		return io.EOF
+	default:
+		cr.closer = rc
+	}
+	cr.mu.Unlock()
+
+	for {
+		m, err := dec.decode()
 	}
 }
 
@@ -148,14 +219,35 @@ func (cr *streamReader) dial(t streamType) (io.ReadCloser, error) {
 	uu := u
 	uu.Path = path.Join(t.endpoint(cr.lg), cr.tr.ID.String())
 
+	if cr.lg != nil {
+		cr.lg.Debug(
+			"dial stream reader",
+			zap.String("from", cr.tr.ID.String()),
+			zap.String("to", cr.peerID.String()),
+			zap.String("address", uu.String()),
+		)
+	}
+
 	req, err := http.NewRequest("GET", uu.String(), nil)
 	if err != nil {
-
+		return nil, fmt.Errorf("failed to make http request to %v (%v)", u, err)
 	}
+	req.Header.Set("X-Server-From", cr.tr.ID.String())
+	req.Header.Set("X-Raft-To", cr.peerID.String())
+
 	resp, err := cr.tr.streamRt.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(resp)
-	return nil, nil
+
+	switch resp.StatusCode {
+	case http.StatusGone: //请求端的目标资源在原服务器上不存在,说明已经被移除
+		return nil, errMemberRemoved
+	case http.StatusOK:
+		return resp.Body, nil
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("peer %s failed to find local node %s", cr.peerID, cr.tr.ID)
+	default:
+		return nil, fmt.Errorf("unhandled http status %d", resp.StatusCode)
+	}
 }
