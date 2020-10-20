@@ -109,8 +109,15 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 	if err = e.servePeers(); err != nil {
 		return e, err
 	}
+	if err = e.serveClients(); err != nil {
+		return e, err
+	}
 
 	return e, nil
+}
+
+func (e *Etcd) Config() Config {
+	return e.cfg
 }
 
 // configurePeerListeners - 设置集群的监听
@@ -125,6 +132,19 @@ func configurePeerListeners(cfg *Config) (peers []*peerListener, err error) {
 			plog.Fatalf("could not get certs (%v)", err)
 		}
 	}
+
+	if !cfg.PeerTLSInfo.Empty() {
+		if cfg.logger != nil {
+			cfg.logger.Info(
+				"starting with peer TLS",
+				zap.String("tls-info", fmt.Sprintf("%+v", cfg.PeerTLSInfo)),
+				zap.Strings("cipher-suites", cfg.CipherSuites),
+			)
+		} else {
+			plog.Infof("peerTLS: %s", cfg.PeerTLSInfo)
+		}
+	}
+
 	peers = make([]*peerListener, len(cfg.LPUrls))
 	defer func() {
 		if err == nil {
@@ -146,6 +166,22 @@ func configurePeerListeners(cfg *Config) (peers []*peerListener, err error) {
 	}()
 
 	for i, u := range cfg.LPUrls {
+		if u.Scheme == "http" {
+			if !cfg.PeerTLSInfo.Empty() {
+				if cfg.logger != nil {
+					cfg.logger.Warn("scheme is HTTP while key and cert files are present; ignoring key and cert files", zap.String("peer-url", u.String()))
+				} else {
+					plog.Warningf("The scheme of peer url %s is HTTP while peer key/cert files are presented. Ignored peer key/cert files.", u.String())
+				}
+			}
+			if cfg.PeerTLSInfo.ClientCertAuth {
+				if cfg.logger != nil {
+					cfg.logger.Warn("scheme is HTTP while --peer-client-cert-auth is enabled; ignoring client cert auth for this URL", zap.String("peer-url", u.String()))
+				} else {
+					plog.Warningf("The scheme of peer url %s is HTTP while client cert auth (--peer-client-cert-auth) is enabled. Ignored client cert auth for this url.", u.String())
+				}
+			}
+		}
 		peers[i] = &peerListener{close: func(ctx context.Context) error { return nil }}
 		peers[i].Listener, err = rafthttp.NewListener(u, &cfg.PeerTLSInfo)
 		if err != nil {
@@ -179,6 +215,15 @@ func (e *Etcd) servePeers() (err error) {
 		//这个底层tcp是必须的，否则http无法连通
 		for _, pl := range e.Peers {
 			go func(l *peerListener) {
+				u := l.Addr().String()
+				if e.cfg.logger != nil {
+					e.cfg.logger.Info(
+						"serving peer traffic",
+						zap.String("address", u),
+					)
+				} else {
+					plog.Info("listening for peers on ", u)
+				}
 				e.errHandler(l.serve())
 			}(pl)
 		}
@@ -187,9 +232,40 @@ func (e *Etcd) servePeers() (err error) {
 }
 
 func configureClientListeners(cfg *Config) (sctxs map[string]*serveCtx, err error) {
+	if err = updateCipherSuites(&cfg.ClientTLSInfo, cfg.CipherSuites); err != nil {
+		return nil, err
+	}
+	if err = cfg.ClientSelfCert(); err != nil {
+		if cfg.logger != nil {
+			cfg.logger.Fatal("failed to get client self-signed certs", zap.Error(err))
+		} else {
+			plog.Fatalf("could not get certs (%v)", err)
+		}
+	}
+
 	sctxs = make(map[string]*serveCtx)
 	for _, u := range cfg.LCUrls {
 		sctx := newServeCtx(cfg.logger)
+		if u.Scheme == "http" || u.Scheme == "unix" {
+			if !cfg.ClientTLSInfo.Empty() {
+				if cfg.logger != nil {
+					cfg.logger.Warn("scheme is HTTP while key and cert files are present; ignoring key and cert files", zap.String("client-url", u.String()))
+				} else {
+					plog.Warningf("The scheme of client url %s is HTTP while peer key/cert files are presented. Ignored key/cert files.", u.String())
+				}
+			}
+			if cfg.ClientTLSInfo.ClientCertAuth {
+				if cfg.logger != nil {
+					cfg.logger.Warn("scheme is HTTP while --client-cert-auth is enabled; ignoring client cert auth for this URL", zap.String("client-url", u.String()))
+				} else {
+					plog.Warningf("The scheme of client url %s is HTTP while client cert auth (--client-cert-auth) is enabled. Ignored client cert auth for this url.", u.String())
+				}
+			}
+		}
+		if (u.Scheme == "https" || u.Scheme == "unixs") && cfg.ClientTLSInfo.Empty() {
+			return nil, fmt.Errorf("TLS key/cert (--cert-file, --key-file) must be provided for client url %s with HTTPS scheme", u.String())
+		}
+
 		network := "tcp"
 		addr := u.Host
 		if u.Scheme == "unix" || u.Scheme == "unixs" {
@@ -197,6 +273,7 @@ func configureClientListeners(cfg *Config) (sctxs map[string]*serveCtx, err erro
 			addr = u.Host + u.Path
 		}
 		sctx.network = network
+
 		sctx.secure = u.Scheme == "https" || u.Scheme == "unixs"
 		sctx.insecure = !sctx.secure
 		if oldctx := sctxs[addr]; oldctx != nil {
@@ -234,16 +311,35 @@ func configureClientListeners(cfg *Config) (sctxs map[string]*serveCtx, err erro
 				return
 			}
 			sctx.l.Close()
-			cfg.logger.Warn(
-				"closing peer listener",
-				zap.String("address", u.Host),
-				zap.Error(err),
-			)
+			if cfg.logger != nil {
+				cfg.logger.Warn(
+					"closing peer listener",
+					zap.String("address", u.Host),
+					zap.Error(err),
+				)
+			} else {
+				plog.Info("stopping listening for client requests on ", u.Host)
+			}
 		}()
-
 		sctxs[addr] = sctx
 	}
 	return sctxs, nil
+}
+
+//serveClients -生成http.handle 用于处理Client请求
+func (e *Etcd) serveClients() (err error) {
+	if !e.cfg.ClientTLSInfo.Empty() {
+		if e.cfg.logger != nil {
+			e.cfg.logger.Info(
+				"starting with client TLS",
+				zap.String("tls-info", fmt.Sprintf("%+v", e.cfg.ClientTLSInfo)),
+				zap.Strings("cipher-suites", e.cfg.CipherSuites),
+			)
+		} else {
+			plog.Infof("ClientTLS: %s", e.cfg.ClientTLSInfo)
+		}
+	}
+
 }
 
 func (e *Etcd) errHandler(err error) {
