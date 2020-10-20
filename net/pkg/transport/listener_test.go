@@ -28,6 +28,12 @@ func createSelfCertEx(host string, additionalUsages ...x509.ExtKeyUsage) (*TLSIn
 	return &info, func() { os.RemoveAll(d) }, nil
 }
 
+func fakeCertificateParserFunc(cert tls.Certificate, err error) func(certPEMBlock, keyPEMBlock []byte) (tls.Certificate, error) {
+	return func(certPEMBlock, keyPEMBlock []byte) (tls.Certificate, error) {
+		return cert, err
+	}
+}
+
 // TestNewListenerTLSInfo tests that NewListener with valid TLSInfo returns
 // a TLS listener that accepts TLS connections.
 func TestNewListenerTLSInfo(t *testing.T) {

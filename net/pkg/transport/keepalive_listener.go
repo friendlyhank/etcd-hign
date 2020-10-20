@@ -70,6 +70,7 @@ func (l *tlsKeepaliveListener) Accept() (c net.Conn, err error) {
 	// default on osx:    30 + 8 * 75
 	kac.SetKeepAlive(true)
 	kac.SetKeepAlivePeriod(30 * time.Second)
+	c = tls.Server(c,l.config)
 	return c, nil
 }
 

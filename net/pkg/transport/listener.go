@@ -198,6 +198,7 @@ func (info TLSInfo) cafiles() []string {
 	return cs
 }
 
+// ServerConfig generates a tls.Config object for use by an HTTP server.
 func (info TLSInfo) ServerConfig() (*tls.Config, error) {
 	cfg, err := info.baseConfig()
 	if err != nil {
@@ -224,7 +225,7 @@ func (info TLSInfo) ServerConfig() (*tls.Config, error) {
 	// go1.13 enables TLS 1.3 by default
 	// and in TLS 1.3, cipher suites are not configurable
 	// setting Max TLS version to TLS 1.2 for go 1.13
-	cfg.MinVersion = tls.VersionTLS12
+	cfg.MaxVersion = tls.VersionTLS12
 
 	return cfg, nil
 }
