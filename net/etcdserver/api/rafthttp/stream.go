@@ -211,6 +211,8 @@ func (cr *streamReader) decodeLoop(rc io.ReadCloser, t streamType) error {
 
 	for {
 		m, err := dec.decode()
+		fmt.Println(m)
+		fmt.Println(err)
 	}
 }
 

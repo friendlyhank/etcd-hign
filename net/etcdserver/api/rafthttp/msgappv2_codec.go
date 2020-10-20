@@ -1,7 +1,11 @@
 package rafthttp
 
 import (
+	"encoding/binary"
+	"fmt"
 	"io"
+
+	"go.etcd.io/etcd/pkg/pbutil"
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 
@@ -65,6 +69,7 @@ func newMsgAppV2Decoder(r io.Reader, local, remote types.ID) *msgAppV2Decoder {
 	}
 }
 
+//v2版本消息的解码
 func (dec *msgAppV2Decoder) decode() (raftpb.Message, error) {
 	var (
 		m   raftpb.Message
@@ -78,7 +83,31 @@ func (dec *msgAppV2Decoder) decode() (raftpb.Message, error) {
 	case msgTypeLinkHeartbeat:
 		return linkHeartbeatMessage, nil
 	case msgTypeAppEntries:
-		m = raftpb.Message{}
+		m = raftpb.Message{
+			Type: raftpb.MsgApp,
+			From: uint64(dec.remote),
+			To:   uint64(dec.local),
+		}
+
+		// decode entries
+		if _, err := io.ReadFull(dec.r, dec.uint64buf); err != nil {
+			return m, err
+		}
+		l := binary.BigEndian.Uint64(dec.uint64buf)
+		m.Entries = make([]raftpb.Entry, int(l))
+	case msgTypeApp:
+		var size uint64
+		if err := binary.Read(dec.r, binary.BigEndian, &size); err != nil {
+			return m, err
+		}
+		buf := make([]byte, int(size))
+		if _, err := io.ReadFull(dec.r, buf); err != nil {
+			return m, err
+		}
+		//解读消息体
+		pbutil.MustUnmarshal(&m, buf)
+	default:
+		return m, fmt.Errorf("failed to parse type %d in msgappv2 stream", typ)
 	}
 	return m, nil
 }
