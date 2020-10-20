@@ -65,7 +65,7 @@ func newTLSListener(l net.Listener, tlsinfo *TLSInfo, check tlsCheckFunc) (net.L
 		check:            check,
 	}
 	go tlsl.acceptLoop()
-	return l, nil
+	return tlsl, nil
 }
 
 func checkSAN(ctx context.Context, tlsConn *tls.Conn) error {

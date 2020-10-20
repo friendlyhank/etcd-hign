@@ -54,9 +54,21 @@ func TestNewKeepAliveListener(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected Accept error: %v", err)
 	}
+	//直接校验一下是否tls.Conn可知是否设置tls成功
 	if _, ok := conn.(*tls.Conn); !ok {
 		t.Errorf("failed to accept *tls.Conn")
 	}
 	conn.Close()
 	tlsln.Close()
+}
+
+func TestNewKeepAliveListenerTLSEmptyConfig(t *testing.T){
+	ln,err := net.Listen("tcp","127.0.0.1:0")
+	if err != nil{
+		t.Fatalf("unexpected listen error: %v", err)
+	}
+	_,err =NewKeepAliveListener(ln,"https",nil)
+	if err == nil{
+		t.Errorf("err = nil,want not presented error")
+	}
 }
