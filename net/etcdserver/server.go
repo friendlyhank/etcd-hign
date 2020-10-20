@@ -35,6 +35,11 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 		id types.ID //当前节点唯一id
 		cl *membership.RaftCluster
 	)
+
+	var (
+		remotes []*membership.Member
+	)
+
 	//根据urlmap设置集群信息和member信息
 	cl, err = membership.NewClusterFromURLsMap(nil, cfg.InitialClusterToken, cfg.InitialPeerURLsMap)
 	//启动node
@@ -47,16 +52,26 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 	}
 	// TODO: move transport initialization near the definition of remote
 	tr := &rafthttp.Transport{
-		ID: id,
+		Logger:  cfg.Logger,
+		TLSInfo: cfg.PeerTLSInfo,
+		ID:      id,
 	}
 	//启动etcd核心网络传输组件
 	if err = tr.Start(); err != nil {
 		return nil, err
 	}
+
+	//remotes为排除当前节点的所有节点
+	for _, m := range remotes {
+		if m.ID != id {
+			tr.AddRemote(m.ID, m.PeerURLs)
+		}
+	}
+
 	//addPeer 会startPeer并且启动监听
 	for _, m := range cl.Members() {
 		if m.ID != id {
-			tr.AddRemote(m.ID, m.PeerURLs)
+			tr.AddPeer(m.ID, m.PeerURLs)
 		}
 	}
 	srv.r.transport = tr

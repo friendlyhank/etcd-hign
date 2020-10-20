@@ -339,7 +339,7 @@ func (e *Etcd) serveClients() (err error) {
 			plog.Infof("ClientTLS: %s", e.cfg.ClientTLSInfo)
 		}
 	}
-
+	return nil
 }
 
 func (e *Etcd) errHandler(err error) {

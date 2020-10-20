@@ -12,6 +12,13 @@ import (
 )
 
 const (
+	// ConnReadTimeout and ConnWriteTimeout are the i/o timeout set on each connection rafthttp pkg creates.
+	// A 5 seconds timeout is good enough for recycling bad connections. Or we have to wait for
+	// tcp keepalive failing to detect a bad connection, which is at minutes level.
+	// For long term streaming connections, rafthttp pkg sends application level linkHeartbeatMessage
+	// to keep the connection alive.
+	// For short term pipeline connections, the connection MUST be killed to avoid it being
+	// put back to http pkg connection pool.
 	ConnReadTimeout  = 5 * time.Second
 	ConnWriteTimeout = 5 * time.Second
 
@@ -45,11 +52,20 @@ type peer struct {
 
 	msgAppV2Writer *streamWriter
 	writer         *streamWriter
+	pipeline       *pipeline
 	msgAppV2Reader *streamReader
 	msgAppReader   *streamReader
 }
 
 func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
+	if t.Logger != nil {
+		t.Logger.Info("starting remote peer", zap.String("remote-peer-id", peerID.String()))
+	}
+	defer func() {
+		if t.Logger != nil {
+			t.Logger.Info("started remote peer", zap.String("remote-peer-id", peerID.String()))
+		}
+	}()
 	picker := newURLPicker(urls)
 
 	p := &peer{

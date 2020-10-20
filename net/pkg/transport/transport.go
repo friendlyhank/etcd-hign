@@ -8,17 +8,25 @@ import (
 
 type unixTransport struct{ *http.Transport }
 
-//TODO HANK 搞懂这个是啥
-func NewTransport()(*http.Transport,error){
+func NewTransport(info TLSInfo, dialtimeoutd time.Duration) (*http.Transport, error) {
+	cfg, err := info.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
 	t := &http.Transport{
-		Proxy:http.ProxyFromEnvironment,
+		Proxy: http.ProxyFromEnvironment,
 		Dial: (&net.Dialer{
+			Timeout: dialtimeoutd,
 			// value taken from http.DefaultTransport
 			KeepAlive: 30 * time.Second,
 		}).Dial,
+		// value taken from http.DefaultTransport
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     cfg,
 	}
 
 	dialer := (&net.Dialer{
+		Timeout:   dialtimeoutd,
 		KeepAlive: 30 * time.Second,
 	})
 	dial := func(net, addr string) (net.Conn, error) {
@@ -28,12 +36,14 @@ func NewTransport()(*http.Transport,error){
 	tu := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		Dial:                dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     cfg,
 	}
 
-	ut :=&unixTransport{tu}
+	ut := &unixTransport{tu}
 
 	t.RegisterProtocol("unix", ut)
-	t.RegisterProtocol("unixs",ut)
+	t.RegisterProtocol("unixs", ut)
 
-	return t,nil
+	return t, nil
 }

@@ -80,6 +80,10 @@ type TLSInfo struct {
 	AllowedHostname string
 
 	Logger *zap.Logger
+
+	// EmptyCN indicates that the cert must have empty CN.
+	// If true, ClientConfig() will return an error for a cert with non empty CN.
+	EmptyCN bool
 }
 
 func (info TLSInfo) String() string {
@@ -222,6 +226,60 @@ func (info TLSInfo) ServerConfig() (*tls.Config, error) {
 	// setting Max TLS version to TLS 1.2 for go 1.13
 	cfg.MinVersion = tls.VersionTLS12
 
+	return cfg, nil
+}
+
+func (info TLSInfo) ClientConfig() (*tls.Config, error) {
+	var cfg *tls.Config
+	var err error
+
+	if !info.Empty() {
+		cfg, err = info.baseConfig()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cfg = &tls.Config{ServerName: info.ServerName}
+	}
+	cfg.InsecureSkipVerify = info.InsecureSkipVerify
+
+	cs := info.cafiles()
+	if len(cs) > 0 {
+		cfg.RootCAs, err = tlsutil.NewCertPool(cs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if info.selfCert {
+		cfg.InsecureSkipVerify = true
+	}
+
+	if info.EmptyCN {
+		hasNonEmptyCN := false
+		cn := ""
+		tlsutil.NewCert(info.CertFile, info.KeyFile, func(certPEMBlock []byte, keyPEMBlock []byte) (tls.Certificate, error) {
+			var block *pem.Block
+			block, _ = pem.Decode(certPEMBlock)
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return tls.Certificate{}, err
+			}
+			if len(cert.Subject.CommonName) != 0 {
+				hasNonEmptyCN = true
+				cn = cert.Subject.CommonName
+			}
+			return tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+		})
+		if hasNonEmptyCN {
+			return nil, fmt.Errorf("cert has non empty Common Name (%s)", cn)
+		}
+	}
+
+	// go1.13 enables TLS 1.3 by default
+	// and in TLS 1.3, cipher suites are not configurable
+	// setting Max TLS version to TLS 1.2 for go 1.13
+	cfg.MaxVersion = tls.VersionTLS12
 	return cfg, nil
 }
 

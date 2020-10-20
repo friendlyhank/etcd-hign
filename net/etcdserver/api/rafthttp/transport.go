@@ -3,6 +3,9 @@ package rafthttp
 import (
 	"net/http"
 	"sync"
+	"time"
+
+	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 
 	"go.uber.org/zap"
 
@@ -13,6 +16,9 @@ import (
 
 // Transporter -网络接口核心
 type Transporter interface {
+	// Start starts the given Transporter.
+	// Start MUST be called before calling other functions in the interface.
+	Start() error
 	// Handler returns the HTTP handler of the transporter.
 	// A transporter HTTP handler handles the HTTP requests
 	// from remote peers.
@@ -25,25 +31,44 @@ type Transporter interface {
 	// If the id cannot be found in the transport, the message
 	// will be ignored.
 	Send(m []raftpb.Message)
+	// AddRemote adds a remote with given peer urls into the transport.
+	// A remote helps newly joined member to catch up the progress of cluster,
+	// and will not be used after that.
+	// It is the caller's responsibility to ensure the urls are all valid,
+	// or it panics.
+	AddRemote(id types.ID, urls []string)
+	// AddPeer adds a peer with given peer urls into the transport.
+	// It is the caller's responsibility to ensure the urls are all valid,
+	// or it panics.
+	// Peer urls are used to connect to the remote peer.
+	AddPeer(id types.ID, urls []string)
 }
 
 type Transport struct {
 	Logger *zap.Logger
 
-	ID    types.ID          //local member ID 当前节点的唯一id
+	DialTimeout time.Duration // maximum duration before timing out dial of the request
 
-	streamRt http.RoundTripper //roundTripper used by streams
+	TLSInfo transport.TLSInfo // TLS information used when creating connection
 
-	mu    sync.RWMutex      //protect the remote and peer map
-	peers map[types.ID]Peer //peers map
+	ID types.ID //local member ID 当前节点的唯一id
+
+	streamRt   http.RoundTripper //roundTripper used by streams
+	pipelineRt http.RoundTripper //roundTripper used by pipelines
+
+	mu      sync.RWMutex         //protect the remote and peer map
+	remotes map[types.ID]*remote // remotes map that helps newly joined member to catch up
+	peers   map[types.ID]Peer    //peers map
 }
 
 func (t *Transport) Start() error {
 	var err error
-	t.streamRt,err =newStreamRoundTripper()
-	if err != nil{
+	t.streamRt, err = newStreamRoundTripper(t.TLSInfo, t.DialTimeout)
+	if err != nil {
 		return err
 	}
+	t.pipelineRt, err = NewRoundTripper(t.TLSInfo, t.DialTimeout)
+	t.remotes = make(map[types.ID]*remote)
 	t.peers = make(map[types.ID]Peer)
 	return nil
 }
@@ -84,6 +109,43 @@ func (t *Transport) Send(msgs []raftpb.Message) {
 func (t *Transport) AddRemote(id types.ID, us []string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if t.remotes == nil {
+		// there's no clean way to shutdown the golang http server
+		// (see: https://github.com/golang/go/issues/4674) before
+		// stopping the transport; ignore any new connections.
+		return
+	}
+	if _, ok := t.peers[id]; ok {
+		return
+	}
+	if _, ok := t.remotes[id]; ok {
+		return
+	}
+	urls, err := types.NewURLs(us)
+	if err != nil {
+		if t.Logger != nil {
+			t.Logger.Panic("failed NewURLs", zap.Strings("urls", us), zap.Error(err))
+		}
+	}
+	t.remotes[id] = startRemote(t, urls, id)
+
+	if t.Logger != nil {
+		t.Logger.Info(
+			"added new remote peer",
+			zap.String("local-member-id", t.ID.String()),
+			zap.String("remote-peer-id", id.String()),
+			zap.Strings("remote-peer-urls", us),
+		)
+	}
+}
+
+func (t *Transport) AddPeer(id types.ID, us []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.peers == nil {
+		panic("transport stopped")
+	}
 	if _, ok := t.peers[id]; ok {
 		return
 	}

@@ -18,6 +18,29 @@ type peerGetter interface {
 	Get(id types.ID) Peer
 }
 
+type pipelineHandler struct {
+	lg      *zap.Logger
+	localID types.ID
+	tr      *Transport
+}
+
+// newPipelineHandler returns a handler for handling raft messages
+// from pipeline for RaftPrefix.
+//
+// The handler reads out the raft message from request body,
+// and forwards it to the given raft state machine for processing.
+func newPipelineHandler(t *Transport) http.Handler {
+	return &pipelineHandler{
+		lg:      t.Logger,
+		localID: t.ID,
+		tr:      t,
+	}
+}
+
+func (h *pipelineHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+}
+
 type streamHandler struct {
 	lg         *zap.Logger
 	tr         *Transport
