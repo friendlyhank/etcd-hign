@@ -47,6 +47,64 @@ const (
 // | 0      | 1     | \x02        |
 // | 1      | 8     | length of encoded message |
 // | 9      | n     | encoded message |
+type msgAppV2Encoder struct {
+	w  io.Writer
+
+	term uint64
+	index uint64
+	buf       []byte
+	uint64buf []byte
+	uint8buf  []byte
+}
+
+func newMsgAppV2Encoder(w io.Writer)*msgAppV2Encoder{
+	return &msgAppV2Encoder{
+		w:w,
+		buf:make([]byte,msgAppV2BufSize),
+		uint64buf:make([]byte,8),
+		uint8buf:make([]byte,1),
+	}
+}
+
+func (enc *msgAppV2Encoder) encode(m *raftpb.Message) error {
+	//start := time.Now()
+	switch  {
+	case isLinkHeartbeatMessage(m):
+		enc.uint8buf[0] = msgTypeLinkHeartbeat
+		if _,err :=enc.w.Write(enc.uint8buf);err != nil{
+			return err
+		}
+	}
+	return nil
+}
+
+// msgappv2 stream sends three types of message: linkHeartbeatMessage,
+// AppEntries and MsgApp. AppEntries is the MsgApp that is sent in
+// replicate state in raft, whose index and term are fully predictable.
+//
+// Data format of linkHeartbeatMessage:
+// | offset | bytes | description |
+// +--------+-------+-------------+
+// | 0      | 1     | \x00        |
+//
+// Data format of AppEntries:
+// | offset | bytes | description |
+// +--------+-------+-------------+
+// | 0      | 1     | \x01        |
+// | 1      | 8     | length of entries |
+// | 9      | 8     | length of first entry |
+// | 17     | n1    | first entry |
+// ...
+// | x      | 8     | length of k-th entry data |
+// | x+8    | nk    | k-th entry data |
+// | x+8+nk | 8     | commit index |
+//
+// Data format of MsgApp:
+// | offset | bytes | description |
+// +--------+-------+-------------+
+// | 0      | 1     | \x02        |
+// | 1      | 8     | length of encoded message |
+// | 9      | n     | encoded message |
 //TODO Hank分析下消息的结构
 //v2 msg消息解码器
 type msgAppV2Decoder struct {

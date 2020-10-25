@@ -56,6 +56,10 @@ var (
 	linkHeartbeatMessage = raftpb.Message{Type: raftpb.MsgHeartbeat}
 )
 
+func isLinkHeartbeatMessage(m *raftpb.Message)bool{
+	return m.Type == raftpb.MsgHeartbeat && m.From == 0 && m.To == 0
+}
+
 type outgoingConn struct {
 	t streamType //流的类型
 	io.Writer
