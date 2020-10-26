@@ -1,8 +1,11 @@
 package rafthttp
 
 import (
-	"fmt"
+	"bytes"
+	"context"
+	"io/ioutil"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -55,9 +58,42 @@ func (p *pipeline) handle() {
 	for {
 		select {
 		case m := <-p.msgc:
-			fmt.Println(m)
+			start := time.Now()
 		case <-p.stopc:
 			return
 		}
 	}
 }
+
+// post POSTs a data payload to a url. Returns nil if the POST succeeds,
+// error on any failure.
+func (p *pipeline) post(data []byte) (err error) {
+	u := p.picker.pick()
+	req := createPostRequest(u, RaftPrefix, bytes.NewBuffer(data), "application/protobuf", p.tr.URLs, p.tr.ID, p.tr.ClusterID)
+
+	done := make(chan struct{}, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	req = req.WithContext(ctx)
+	go func() {
+		select {
+		case <-done:
+		case <-p.stopc:
+			waitSchedule()
+			cancel()
+		}
+	}()
+	resp, err := p.tr.pipelineRt.RoundTrip(req)
+	done <- struct{}{}
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+
+	}
+	return nil
+}
+
+// waitSchedule waits other goroutines to be scheduled for a while
+func waitSchedule() { time.Sleep(time.Millisecond) }

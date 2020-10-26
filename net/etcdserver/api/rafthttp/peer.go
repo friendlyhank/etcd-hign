@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 
 	"go.uber.org/zap"
@@ -144,6 +146,7 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		status: status,
 		recvc:  p.recvc,
 		propc:  p.propc,
+		rl:     rate.NewLimiter(t.DialRetryFrequency, 1), //拨号限制频率
 	}
 
 	p.msgAppReader = &streamReader{
@@ -155,6 +158,7 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		status: status,
 		recvc:  p.recvc,
 		propc:  p.propc,
+		rl:     rate.NewLimiter(t.DialRetryFrequency, 1), //拨号限制频率
 	}
 
 	p.msgAppV2Reader.start()

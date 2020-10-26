@@ -9,6 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
+	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
+
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
@@ -146,6 +150,10 @@ type streamReader struct {
 	recvc  chan<- raftpb.Message
 	propc  chan<- raftpb.Message
 
+	rl *rate.Limiter // alters the frequency of dial retrial attempts 设置拨号的频率
+
+	errorc chan<- error
+
 	mu     sync.Mutex
 	paused bool
 	closer io.Closer
@@ -157,6 +165,9 @@ type streamReader struct {
 
 func (cr *streamReader) start() {
 	cr.done = make(chan struct{})
+	if cr.errorc == nil {
+		cr.errorc = cr.tr.ErrorC
+	}
 	if cr.ctx == nil {
 		cr.ctx, cr.cancel = context.WithCancel(context.Background())
 	}
@@ -192,6 +203,48 @@ func (cr *streamReader) run() {
 				)
 			}
 			err = cr.decodeLoop(rc, t)
+			if cr.lg != nil {
+				cr.lg.Warn(
+					"lost TCP streaming connection with remote peer",
+					zap.String("stream-reader-type", cr.typ.String()),
+					zap.String("local-member-id", cr.tr.ID.String()),
+					zap.String("remote-peer-id", cr.peerID.String()),
+					zap.Error(err),
+				)
+			}
+			switch {
+			// all data is read out
+			case err == io.EOF:
+			// connection is closed by the remote
+			case transport.IsClosedConnError(err):
+			default:
+				cr.status.deactivate(failureType{source: t.String(), action: "read"}, err.Error())
+			}
+		}
+		// Wait for a while before new dial attempt
+		err = cr.rl.Wait(cr.ctx)
+		if cr.ctx.Err() != nil {
+			if cr.lg != nil {
+				cr.lg.Info(
+					"stopped stream reader with remote peer",
+					zap.String("stream-reader-type", t.String()),
+					zap.String("local-member-id", cr.tr.ID.String()),
+					zap.String("remote-peer-id", cr.peerID.String()),
+				)
+			}
+			close(cr.done)
+			return
+		}
+		if err != nil {
+			if cr.lg != nil {
+				cr.lg.Warn(
+					"rate limit on stream reader with remote peer",
+					zap.String("stream-reader-type", t.String()),
+					zap.String("local-member-id", cr.tr.ID.String()),
+					zap.String("remote-peer-id", cr.peerID.String()),
+					zap.Error(err),
+				)
+			}
 		}
 	}
 }
@@ -277,6 +330,14 @@ func (cr *streamReader) decodeLoop(rc io.ReadCloser, t streamType) error {
 			}
 		}
 	}
+}
+
+func (cr *streamReader) stop() {
+	cr.mu.Lock()
+	cr.cancel()
+	cr.close()
+	cr.mu.Unlock()
+	<-cr.done
 }
 
 func (cr *streamReader) dial(t streamType) (io.ReadCloser, error) {

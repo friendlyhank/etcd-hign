@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 
 	"go.uber.org/zap"
@@ -48,6 +50,9 @@ type Transport struct {
 	Logger *zap.Logger
 
 	DialTimeout time.Duration // maximum duration before timing out dial of the request
+	// DialRetryFrequency defines the frequency of streamReader dial retrial attempts;
+	// a distinct rate limiter is created per every peer (default value: 10 events/sec)
+	DialRetryFrequency rate.Limit //节点拨号的时候限制频率
 
 	TLSInfo transport.TLSInfo // TLS information used when creating connection
 
@@ -77,6 +82,13 @@ func (t *Transport) Start() error {
 	t.pipelineRt, err = NewRoundTripper(t.TLSInfo, t.DialTimeout)
 	t.remotes = make(map[types.ID]*remote)
 	t.peers = make(map[types.ID]Peer)
+
+	// If client didn't provide dial retry frequency, use the default
+	// (100ms backoff between attempts to create a new stream),
+	// so it doesn't bring too much overhead when retry.
+	if t.DialRetryFrequency == 0 {
+		t.DialRetryFrequency = rate.Every(100 * time.Millisecond)
+	}
 	return nil
 }
 
