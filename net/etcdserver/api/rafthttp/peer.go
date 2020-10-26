@@ -52,6 +52,8 @@ type peer struct {
 	// id of the remote raft peer node 除本地节点外的某个节点
 	id types.ID
 
+	status *peerStatus
+
 	picker *urlPicker
 
 	msgAppV2Writer *streamWriter
@@ -78,12 +80,17 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 			t.Logger.Info("started remote peer", zap.String("remote-peer-id", peerID.String()))
 		}
 	}()
+
+	status := newPeerStatus(t.Logger, t.ID, peerID)
 	picker := newURLPicker(urls)
+	errorc := t.ErrorC
 
 	pipeline := &pipeline{
 		peerID: peerID,
 		tr:     t,
 		picker: picker,
+		status: status,
+		errorc: errorc,
 	}
 	//启动pipeline start
 	pipeline.start()
@@ -92,6 +99,7 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		lg:             t.Logger,
 		localID:        t.ID,
 		id:             peerID,
+		status:         status,
 		picker:         picker,
 		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID), //启动streamv2写入流
 		writer:         startStreamWriter(t.Logger, t.ID, peerID), //启动stream写入流
@@ -100,12 +108,40 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		stopc:          make(chan struct{}),
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	p.cancel = cancel
+	go func() {
+		for {
+			select {
+			case mm := <-p.recvc:
+				fmt.Println(mm)
+			case <-p.stopc:
+				return
+			}
+		}
+	}()
+
+	// r.Process might block for processing proposal when there is no leader.
+	// Thus propc must be put into a separate routine with recvc to avoid blocking
+	// processing other raft messages.
+	go func() {
+		for {
+			select {
+			case mm := <-p.propc:
+				fmt.Println(mm)
+			case <-p.stopc:
+				return
+			}
+		}
+	}()
+
 	p.msgAppV2Reader = &streamReader{
 		lg:     t.Logger,
 		peerID: peerID,
 		typ:    streamTypeMsgAppV2,
 		tr:     t,
 		picker: picker,
+		status: status,
 		recvc:  p.recvc,
 		propc:  p.propc,
 	}
@@ -116,6 +152,7 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		typ:    streamTypeMessage,
 		tr:     t,
 		picker: picker,
+		status: status,
 		recvc:  p.recvc,
 		propc:  p.propc,
 	}

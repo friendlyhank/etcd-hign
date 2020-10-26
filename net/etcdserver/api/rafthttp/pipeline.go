@@ -24,6 +24,8 @@ type pipeline struct {
 
 	tr     *Transport
 	picker *urlPicker
+	status *peerStatus
+	errorc chan error
 
 	msgc chan raftpb.Message
 	// wait for the handling routines

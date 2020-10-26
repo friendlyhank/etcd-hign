@@ -3,6 +3,8 @@ package etcdserver
 import (
 	"net/http"
 
+	"go.uber.org/zap"
+
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/membership"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 
@@ -26,6 +28,10 @@ type Server interface {
 
 type EtcdServer struct {
 	r raftNode
+
+	lg *zap.Logger
+
+	errorc chan error
 }
 
 func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
@@ -46,6 +52,8 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 	id, n = startNode(cfg, cl)
 
 	srv = &EtcdServer{
+		lg:     cfg.Logger,
+		errorc: make(chan error, 1),
 		r: *newRaftNode(raftNodeConfig{
 			Node: n, //这货隐藏的比较深
 		}),

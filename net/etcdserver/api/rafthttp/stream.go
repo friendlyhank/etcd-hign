@@ -22,6 +22,10 @@ const (
 	streamBufSize = 4096
 )
 
+var (
+	errUnsupportedStreamType = fmt.Errorf("unsupported stream type")
+)
+
 type streamType string //流的类型 v2|v3的流
 
 func (t streamType) endpoint(lg *zap.Logger) string {
@@ -56,7 +60,7 @@ var (
 	linkHeartbeatMessage = raftpb.Message{Type: raftpb.MsgHeartbeat}
 )
 
-func isLinkHeartbeatMessage(m *raftpb.Message)bool{
+func isLinkHeartbeatMessage(m *raftpb.Message) bool {
 	return m.Type == raftpb.MsgHeartbeat && m.From == 0 && m.To == 0
 }
 
@@ -138,10 +142,12 @@ type streamReader struct {
 
 	tr     *Transport
 	picker *urlPicker
+	status *peerStatus //节点的状态
 	recvc  chan<- raftpb.Message
 	propc  chan<- raftpb.Message
 
 	mu     sync.Mutex
+	paused bool
 	closer io.Closer
 
 	ctx    context.Context
@@ -172,8 +178,11 @@ func (cr *streamReader) run() {
 	for {
 		rc, err := cr.dial(t)
 		if err != nil {
-
+			if err != errUnsupportedStreamType {
+				cr.status.deactivate(failureType{source: t.String(), action: "dial"}, err.Error())
+			}
 		} else {
+			cr.status.activate()
 			if cr.lg != nil {
 				cr.lg.Info(
 					"established TCP streaming connection with remote peer",
@@ -215,8 +224,36 @@ func (cr *streamReader) decodeLoop(rc io.ReadCloser, t streamType) error {
 
 	for {
 		m, err := dec.decode()
-		fmt.Println(m)
-		fmt.Println(err)
+		if err != nil {
+			cr.mu.Lock()
+			cr.close()
+			cr.mu.Unlock()
+			return err
+		}
+		cr.mu.Lock()
+		paused := cr.paused
+		cr.mu.Unlock()
+
+		if paused {
+			continue
+		}
+
+		if isLinkHeartbeatMessage(&m) {
+			// raft is not interested in link layer
+			// heartbeat message, so we should ignore
+			// it.
+			continue
+		}
+
+		recvc := cr.recvc
+		if m.Type == raftpb.MsgProp {
+			recvc = cr.propc
+		}
+		select {
+		case recvc <- m:
+		default:
+			if cr.status.is
+		}
 	}
 }
 
@@ -256,4 +293,20 @@ func (cr *streamReader) dial(t streamType) (io.ReadCloser, error) {
 	default:
 		return nil, fmt.Errorf("unhandled http status %d", resp.StatusCode)
 	}
+}
+
+func (cr *streamReader) close() {
+	if cr.closer != nil {
+		if err := cr.closer.Close(); err != nil {
+			if cr.lg != nil {
+				cr.lg.Warn(
+					"failed to close remote peer connection",
+					zap.String("local-member-id", cr.tr.ID.String()),
+					zap.String("remote-peer-id", cr.peerID.String()),
+					zap.Error(err),
+				)
+			}
+		}
+	}
+	cr.closer = nil
 }
