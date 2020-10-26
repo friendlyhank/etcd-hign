@@ -108,8 +108,8 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		stopc:          make(chan struct{}),
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	p.cancel = cancel
+	//ctx, cancel := context.WithCancel(context.Background())
+	//p.cancel = cancel
 	go func() {
 		for {
 			select {

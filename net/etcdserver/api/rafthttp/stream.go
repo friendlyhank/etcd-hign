@@ -252,7 +252,29 @@ func (cr *streamReader) decodeLoop(rc io.ReadCloser, t streamType) error {
 		select {
 		case recvc <- m:
 		default:
-			if cr.status.is
+			if cr.status.isActive() {
+				if cr.lg != nil {
+					cr.lg.Warn(
+						"dropped internal Raft message since receiving buffer is full (overloaded network)",
+						zap.String("message-type", m.Type.String()),
+						zap.String("local-member-id", cr.tr.ID.String()),
+						zap.String("from", types.ID(m.From).String()),
+						zap.String("remote-peer-id", types.ID(m.To).String()),
+						zap.Bool("remote-peer-active", cr.status.isActive()),
+					)
+				}
+			} else {
+				if cr.lg != nil {
+					cr.lg.Warn(
+						"dropped Raft message since receiving buffer is full (overloaded network)",
+						zap.String("message-type", m.Type.String()),
+						zap.String("local-member-id", cr.tr.ID.String()),
+						zap.String("from", types.ID(m.From).String()),
+						zap.String("remote-peer-id", types.ID(m.To).String()),
+						zap.Bool("remote-peer-active", cr.status.isActive()),
+					)
+				}
+			}
 		}
 	}
 }

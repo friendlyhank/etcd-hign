@@ -41,16 +41,6 @@ func newNode(rn *RawNode) node {
 func (n *node) run() {
 	var readyc chan Ready
 	var rd Ready
-
-	//TODO HANK 写死消息
-	n.rn.raft.msgs = []pb.Message{
-		pb.Message{
-			Type: pb.MsgVote,
-			To:   1849879258734672239,
-			From: 5751989205868428943,
-		},
-	}
-
 	for {
 		//从这里去写入消息到channel,然后channel接收端会b不断循环发送消息
 		rd = n.rn.readyWithoutAccept()
