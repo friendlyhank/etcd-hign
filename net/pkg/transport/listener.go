@@ -231,6 +231,7 @@ func (info TLSInfo) ServerConfig() (*tls.Config, error) {
 	return cfg, nil
 }
 
+// ClientConfig generates a tls.Config object for use by an HTTP client.
 func (info TLSInfo) ClientConfig() (*tls.Config, error) {
 	var cfg *tls.Config
 	var err error
@@ -282,6 +283,7 @@ func (info TLSInfo) ClientConfig() (*tls.Config, error) {
 	// and in TLS 1.3, cipher suites are not configurable
 	// setting Max TLS version to TLS 1.2 for go 1.13
 	cfg.MaxVersion = tls.VersionTLS12
+
 	return cfg, nil
 }
 
