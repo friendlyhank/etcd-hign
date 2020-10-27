@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"go.etcd.io/etcd/pkg/pbutil"
+
 	"go.uber.org/zap"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
@@ -58,7 +60,15 @@ func (p *pipeline) handle() {
 	for {
 		select {
 		case m := <-p.msgc:
-			start := time.Now()
+			//start := time.Now()
+			err := p.post(pbutil.MustMarshal(&m))
+			//end := time.Now()
+
+			if err != nil {
+				p.status.deactivate(failureType{source: pipelineMsg, action: "write"}, err.Error())
+				continue
+			}
+			p.status.activate()
 		case <-p.stopc:
 			return
 		}
@@ -90,7 +100,16 @@ func (p *pipeline) post(data []byte) (err error) {
 	defer resp.Body.Close()
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		return err
+	}
 
+	err = checkPostResponse(resp, b, req, p.peerID)
+	if err != nil {
+		// errMemberRemoved is a critical error since a removed member should
+		// always be stopped. So we use reportCriticalError to report it to errorc.
+		if err == errMemberRemoved {
+
+		}
 	}
 	return nil
 }

@@ -53,6 +53,12 @@ func createPostRequest(u url.URL, path string, body io.Reader, ct string, urls t
 // raft message.
 func checkPostResponse(resp *http.Response, body []byte, req *http.Request, to types.ID) error {
 	switch resp.StatusCode {
+	case http.StatusPreconditionFailed:
+		return nil
+	case http.StatusForbidden:
+		return errMemberRemoved
+	case http.StatusNoContent:
+		return nil
 	default:
 		return fmt.Errorf("unexpected http status %s while posting to %q", http.StatusText(resp.StatusCode), req.URL.String())
 	}
