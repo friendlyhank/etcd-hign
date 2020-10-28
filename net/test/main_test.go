@@ -51,7 +51,11 @@ func TestInfraOEtcdMain(t *testing.T) {
 		"--advertise-client-urls", "http://127.0.0.1:2379",
 		"--initial-cluster-token", "etcd-cluster-1",
 		"--initial-cluster", "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
-		"--initial-cluster-state", "new"}
+		"--initial-cluster-state", "new",
+		//方便调试
+		"--logger=zap",
+		"--log-level=error", //日志等级 debug, info, warn, error, panic, or fatal
+	}
 	StartInfraServer()
 }
 
@@ -63,7 +67,11 @@ func TestInfra1EtcdMain(t *testing.T) {
 		"--advertise-client-urls", "http://127.0.0.1:2381",
 		"--initial-cluster-token", "etcd-cluster-1",
 		"--initial-cluster", "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
-		"--initial-cluster-state", "new"}
+		"--initial-cluster-state", "new",
+		//方便调试
+		"--logger=zap",
+		"--log-level=error", //日志等级 debug, info, warn, error, panic, or fatal
+	}
 	StartInfraServer()
 }
 
@@ -75,7 +83,11 @@ func TestInfra2EtcdMain(t *testing.T) {
 		"--advertise-client-urls", "http://127.0.0.1:2383",
 		"--initial-cluster-token", "etcd-cluster-1",
 		"--initial-cluster", "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
-		"--initial-cluster-state", "new"}
+		"--initial-cluster-state", "new",
+		//方便调试
+		"--logger=zap",
+		"--log-level=error", //日志等级 debug, info, warn, error, panic, or fatal
+	}
 	StartInfraServer()
 }
 
