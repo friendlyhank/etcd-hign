@@ -72,6 +72,8 @@ type outgoingConn struct {
 	t streamType //流的类型
 	io.Writer
 	http.Flusher
+	io.Closer //io流关闭
+
 	localID types.ID
 	peerID  types.ID
 }
@@ -82,7 +84,10 @@ type streamWriter struct {
 	localID types.ID
 	peerID  types.ID
 
+	status *peerStatus
+
 	mu      sync.Mutex
+	closer  io.Closer
 	working bool //流是否处于工作状态
 
 	msgc  chan raftpb.Message //接收消息
@@ -108,24 +113,163 @@ func (cw *streamWriter) run() {
 	var (
 		msgc       chan raftpb.Message
 		heartbeatc <-chan time.Time
+		t          streamType
+		enc        encoder
 		flusher    http.Flusher
+		batched    int
 	)
 	//设置读取心跳时间
 	tickc := time.NewTicker(ConnReadTimeout / 3)
 	defer tickc.Stop()
+	unflushed := 0
+
+	if cw.lg != nil {
+		cw.lg.Info(
+			"started stream writer with remote peer",
+			zap.String("local-member-id", cw.localID.String()),
+			zap.String("remote-peer-id", cw.peerID.String()),
+		)
+	}
+
 	for {
 		select {
+		case <-heartbeatc:
+			err := enc.encode(&linkHeartbeatMessage)
+			unflushed += linkHeartbeatMessage.Size()
+			if err == nil {
+				flusher.Flush()
+				batched = 0
+				unflushed = 0
+				continue
+			}
+
+			cw.status.deactivate(failureType{source: t.String(), action: "heartbeat"}, err.Error())
+			cw.close()
+			if cw.lg != nil {
+				cw.lg.Warn(
+					"lost TCP streaming connection with remote peer",
+					zap.String("stream-writer-type", t.String()),
+					zap.String("local-member-id", cw.localID.String()),
+					zap.String("remote-peer-id", cw.peerID.String()),
+				)
+			}
+			heartbeatc, msgc = nil, nil
 		case m := <-msgc: //
-			fmt.Println(m)
-			continue //发送完成之后返回上层，并没有结束对话
-		case conn := <-cw.connc:
+			err := enc.encode(&m)
+			if err == nil {
+				unflushed += m.Size()
+
+				if len(msgc) == 0 || batched > streamBufSize/2 {
+					flusher.Flush() //刷新缓冲区并发送到对端
+					unflushed = 0
+					batched = 0
+				} else {
+					batched++
+				}
+				continue //发送完成之后返回上层，并没有结束对话
+			}
+			cw.status.deactivate(failureType{source: t.String(), action: "write"}, err.Error())
+			cw.close() //本次发送结束,即http会话结束
+			if cw.lg != nil {
+				cw.lg.Warn(
+					"lost TCP streaming connection with remote peer",
+					zap.String("stream-writer-type", t.String()),
+					zap.String("local-member-id", cw.localID.String()),
+					zap.String("remote-peer-id", cw.peerID.String()),
+				)
+			}
+			//置心跳和消息通道为nil等待下次连接
+			heartbeatc, msgc = nil, nil
+		case conn := <-cw.connc: //只有在建立连接之后才能发送心跳和消息
+			cw.mu.Lock()
+			closed := cw.closeUnlocked()
+			t = conn.t
+			switch conn.t {
+			case streamTypeMsgAppV2:
+				enc = newMsgAppV2Encoder(conn.Writer)
+			case streamTypeMessage:
+				enc = &messageEncoder{w: conn.Writer}
+			default:
+			}
+			if cw.lg != nil {
+				cw.lg.Info(
+					"set message encoder",
+					zap.String("from", conn.localID.String()),
+					zap.String("to", conn.peerID.String()),
+					zap.String("stream-type", t.String()),
+				)
+			}
 			flusher = conn.Flusher
+			unflushed = 0
+			cw.status.activate() //节点网络连接成功，设置活跃状态
+			cw.closer = conn.Closer
 			cw.working = true //获得连接之后进入工作状态
+			cw.mu.Unlock()
+
+			if closed {
+				if cw.lg != nil {
+					cw.lg.Warn(
+						"closed TCP streaming connection with remote peer",
+						zap.String("stream-writer-type", t.String()),
+						zap.String("local-member-id", cw.localID.String()),
+						zap.String("remote-peer-id", cw.peerID.String()),
+					)
+				}
+			}
+			if cw.lg != nil {
+				cw.lg.Warn(
+					"established TCP streaming connection with remote peer",
+					zap.String("stream-writer-type", t.String()),
+					zap.String("local-member-id", cw.localID.String()),
+					zap.String("remote-peer-id", cw.peerID.String()),
+				)
+			}
 			heartbeatc, msgc = tickc.C, cw.msgc
-			fmt.Println(flusher)
-			fmt.Println(heartbeatc)
+		case <-cw.stopc:
+			if cw.close() {
+				if cw.lg != nil {
+					cw.lg.Warn(
+						"closed TCP streaming connection with remote peer",
+						zap.String("stream-writer-type", t.String()),
+						zap.String("remote-peer-id", cw.peerID.String()),
+					)
+				}
+			}
+			if cw.lg != nil {
+				cw.lg.Warn(
+					"stopped TCP streaming connection with remote peer",
+					zap.String("stream-writer-type", t.String()),
+					zap.String("remote-peer-id", cw.peerID.String()),
+				)
+			}
+			close(cw.done)
+			return
 		}
 	}
+}
+
+func (cw *streamWriter) close() bool {
+	cw.mu.Lock()
+	defer cw.mu.Unlock()
+	return cw.closeUnlocked()
+}
+
+func (cw *streamWriter) closeUnlocked() bool {
+	if !cw.working {
+		return false
+	}
+	if err := cw.closer.Close(); err != nil {
+		if cw.lg != nil {
+			cw.lg.Warn(
+				"failed to close connection with remote peer",
+				zap.String("remote-peer-id", cw.peerID.String()),
+				zap.Error(err),
+			)
+		}
+	}
+	cw.msgc = make(chan raftpb.Message, streamBufSize)
+	cw.working = false
+	return true
 }
 
 //将streamWtiter写入chan
@@ -133,6 +277,8 @@ func (cw *streamWriter) attach(conn *outgoingConn) bool {
 	select {
 	case cw.connc <- conn:
 		return true
+	case <-cw.done:
+		return false
 	}
 }
 

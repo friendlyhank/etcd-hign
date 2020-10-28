@@ -94,9 +94,15 @@ func (t *Transport) Start() error {
 
 func (t *Transport) Handler() http.Handler {
 	/*
+	 *三大Handler模块
+	 *PipelineHandler
+	 *StreamHandler
+	 *SnapHandler
 	 */
-	streamHandler := newStreamHandler(t, t, t.ID)
+	pipelineHandler := newPipelineHandler(t, t.ClusterID)
+	streamHandler := newStreamHandler(t, t, t.ID, t.ClusterID)
 	mux := http.NewServeMux()
+	mux.Handle(RaftPrefix, pipelineHandler)
 	mux.Handle(RaftStreamPrefix+"/", streamHandler)
 	return mux
 }

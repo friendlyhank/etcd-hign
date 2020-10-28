@@ -168,13 +168,13 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 }
 
 func (p *peer) send(m raftpb.Message) {
-	writec, name := p.pick(m)
-	select {
-	case writec <- m:
-		fmt.Println(name)
-	default:
-
-	}
+	//writec, name := p.pick(m)
+	//select {
+	//case writec <- m:
+	//	fmt.Println(name)
+	//default:
+	//
+	//}
 }
 
 func (p *peer) attachOutgoingConn(conn *outgoingConn) {
@@ -185,9 +185,12 @@ func (p *peer) attachOutgoingConn(conn *outgoingConn) {
 	case streamTypeMessage:
 		ok = p.writer.attach(conn)
 	default:
+		if p.lg != nil {
+			p.lg.Panic("unknown stream type", zap.String("type", conn.t.String()))
+		}
 	}
 	if !ok {
-
+		conn.Close()
 	}
 }
 
