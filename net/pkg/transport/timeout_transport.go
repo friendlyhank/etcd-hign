@@ -35,5 +35,3 @@ func NewTimeoutTransport(info TLSInfo, dialtimeoutd, rdtimeoutd, wtimeoutd time.
 	}).Dial
 	return tr, nil
 }
-
-

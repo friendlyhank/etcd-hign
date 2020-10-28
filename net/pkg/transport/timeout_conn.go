@@ -17,7 +17,7 @@ func (c timeoutConn) Write(b []byte) (n int, err error) {
 			return 0, err
 		}
 	}
-	return c.Write(b)
+	return c.Conn.Write(b)
 }
 
 func (c timeoutConn) Read(b []byte) (n int, err error) {
@@ -26,5 +26,5 @@ func (c timeoutConn) Read(b []byte) (n int, err error) {
 			return 0, err
 		}
 	}
-	return c.Read(b)
+	return c.Conn.Read(b)
 }
