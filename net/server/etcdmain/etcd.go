@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func startEtcdOrProxyV2() {
+func startEtcdOrProxyV2(args []string) {
 	cfg := newConfig()
 
 	err := cfg.parse(os.Args[1:])
@@ -24,6 +24,7 @@ func startEtcdOrProxyV2() {
 			os.Exit(1)
 		}
 	}
+	lg.Info("Running", zap.Strings("args", args))
 	if err != nil {
 		lg.Warn("failed to verify flags", zap.Error(err))
 		os.Exit(1)

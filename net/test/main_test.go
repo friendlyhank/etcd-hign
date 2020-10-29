@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/friendlyhank/etcd-hign/net/etcdmain"
+	"github.com/friendlyhank/etcd-hign/net/server/etcdmain"
+
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 )
 
@@ -29,16 +30,10 @@ func createSelfCertEx(host string, additionalUsages ...x509.ExtKeyUsage) (*trans
 	return &info, func() { os.RemoveAll(d) }, nil
 }
 
-//生产环境中端口应该是一样的，IP不同
-//启动测试服务
-func StartInfraServer() {
-	etcdmain.Main() //服务端主入口
-}
-
 /*====================================单节点配置===============================================*/
 func TestSingleEtcdMain(t *testing.T) {
 	os.Args = []string{"etcd-test"}
-	StartInfraServer()
+	etcdmain.Main(os.Args)
 }
 
 /*====================================集群配置===============================================*/
@@ -55,7 +50,7 @@ func TestInfraOEtcdMain(t *testing.T) {
 		//"--logger=zap",
 		//"--log-level=error", //日志等级 debug, info, warn, error, panic, or fatal
 	}
-	StartInfraServer()
+	etcdmain.Main(os.Args)
 }
 
 func TestInfra1EtcdMain(t *testing.T) {
@@ -71,7 +66,7 @@ func TestInfra1EtcdMain(t *testing.T) {
 		"--logger=zap",
 		"--log-level=error", //日志等级 debug, info, warn, error, panic, or fatal
 	}
-	StartInfraServer()
+	etcdmain.Main(os.Args)
 }
 
 func TestInfra2EtcdMain(t *testing.T) {
@@ -87,7 +82,7 @@ func TestInfra2EtcdMain(t *testing.T) {
 		"--logger=zap",
 		"--log-level=error", //日志等级 debug, info, warn, error, panic, or fatal
 	}
-	StartInfraServer()
+	etcdmain.Main(os.Args)
 }
 
 /*====================================集群服务发现===============================================*/
@@ -99,7 +94,7 @@ func TestInfraODiscoverEtcdMain(t *testing.T) {
 		"--advertise-client-urls", "http://127.0.0.1:2381",
 		"--discovery", "https://discovery.etcd.io/f0be1fdc930b1d1a495bb99544a4d2b7",
 	}
-	StartInfraServer()
+	etcdmain.Main(os.Args)
 }
 
 func TestInfra1DiscoverEtcdMain(t *testing.T) {
@@ -110,7 +105,7 @@ func TestInfra1DiscoverEtcdMain(t *testing.T) {
 		"--advertise-client-urls", "http://127.0.0.1:2383",
 		"--discovery", "https://discovery.etcd.io/f0be1fdc930b1d1a495bb99544a4d2b7",
 	}
-	StartInfraServer()
+	etcdmain.Main(os.Args)
 }
 
 func TestInfra2DiscoverEtcdMain(t *testing.T) {
@@ -121,7 +116,7 @@ func TestInfra2DiscoverEtcdMain(t *testing.T) {
 		"--advertise-client-urls", "http://127.0.0.1:2385",
 		"--discovery", "https://discovery.etcd.io/f0be1fdc930b1d1a495bb99544a4d2b7",
 	}
-	StartInfraServer()
+	etcdmain.Main(os.Args)
 }
 
 type securityConfig struct {
@@ -168,5 +163,5 @@ func TestInfraOEtcdMainWithTLS(t *testing.T) {
 		"--peer-client-cert-auth=true", //peer cert校验
 		"--client-cert-auth=true",      //客户端cert校验
 	}
-	StartInfraServer()
+	etcdmain.Main(os.Args)
 }

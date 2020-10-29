@@ -1,3 +1,5 @@
+最新参照的版本etcd-3.4.13
+
 ## node
 type node struct {
 	propc      chan msgWithResult
