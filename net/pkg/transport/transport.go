@@ -24,10 +24,10 @@ import (
 type unixTransport struct{ *http.Transport }
 
 func NewTransport(info TLSInfo, dialtimeoutd time.Duration) (*http.Transport, error) {
-	//cfg, err := info.ClientConfig()
-	//if err != nil {
-	//	return nil, err
-	//}
+	cfg, err := info.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
 
 	t := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
@@ -38,7 +38,7 @@ func NewTransport(info TLSInfo, dialtimeoutd time.Duration) (*http.Transport, er
 		}).Dial,
 		// value taken from http.DefaultTransport
 		TLSHandshakeTimeout: 10 * time.Second,
-		//TLSClientConfig:     cfg,
+		TLSClientConfig:     cfg,
 	}
 
 	dialer := (&net.Dialer{
@@ -53,7 +53,7 @@ func NewTransport(info TLSInfo, dialtimeoutd time.Duration) (*http.Transport, er
 		Proxy:               http.ProxyFromEnvironment,
 		Dial:                dial,
 		TLSHandshakeTimeout: 10 * time.Second,
-		//TLSClientConfig:     cfg,
+		TLSClientConfig:     cfg,
 	}
 	ut := &unixTransport{tu}
 
