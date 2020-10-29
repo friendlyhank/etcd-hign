@@ -8,9 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"go.etcd.io/etcd/pkg/transport"
-
 	"github.com/friendlyhank/etcd-hign/net/etcdmain"
+	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 )
 
 //生成https签名校验
@@ -53,8 +52,8 @@ func TestInfraOEtcdMain(t *testing.T) {
 		"--initial-cluster", "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
 		"--initial-cluster-state", "new",
 		//方便调试
-		"--logger=zap",
-		"--log-level=error", //日志等级 debug, info, warn, error, panic, or fatal
+		//"--logger=zap",
+		//"--log-level=error", //日志等级 debug, info, warn, error, panic, or fatal
 	}
 	StartInfraServer()
 }

@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/friendlyhank/etcd-hign/net/embed"
-	"github.com/friendlyhank/etcd-study/pkg/osutil"
+	"github.com/friendlyhank/etcd-hign/net/pkg/osutil"
 	"go.uber.org/zap"
 )
 

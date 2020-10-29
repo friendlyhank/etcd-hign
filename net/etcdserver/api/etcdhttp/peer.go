@@ -3,7 +3,7 @@ package etcdhttp
 import (
 	"net/http"
 
-	"go.etcd.io/etcd/etcdserver/api/rafthttp"
+	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
 
 	"github.com/friendlyhank/etcd-hign/net/etcdserver"
 	"go.uber.org/zap"

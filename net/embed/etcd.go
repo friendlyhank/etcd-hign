@@ -11,10 +11,10 @@ import (
 	"github.com/friendlyhank/etcd-hign/net/etcdserver"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/etcdhttp"
 	"github.com/friendlyhank/etcd-hign/net/etcdserver/api/rafthttp"
+	runtimeutil "github.com/friendlyhank/etcd-hign/net/pkg/runtime"
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"github.com/soheilhy/cmux"
-	runtimeutil "go.etcd.io/etcd/pkg/runtime"
 	"go.uber.org/zap"
 )
 

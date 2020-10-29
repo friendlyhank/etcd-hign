@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"go.etcd.io/etcd/pkg/logutil"
-	"go.etcd.io/etcd/pkg/tlsutil"
+	"github.com/friendlyhank/etcd-hign/net/pkg/logutil"
+	"github.com/friendlyhank/etcd-hign/net/pkg/tlsutil"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"go.etcd.io/etcd/pkg/pbutil"
+	"github.com/friendlyhank/etcd-hign/net/pkg/pbutil"
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 
