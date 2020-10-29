@@ -44,6 +44,23 @@ type Transporter interface {
 	// or it panics.
 	// Peer urls are used to connect to the remote peer.
 	AddPeer(id types.ID, urls []string)
+	// RemovePeer removes the peer with given id.
+	RemovePeer(id types.ID)
+	// RemoveAllPeers removes all the existing peers in the transport.
+	RemoveAllPeers()
+	// UpdatePeer updates the peer urls of the peer with the given id.
+	// It is the caller's responsibility to ensure the urls are all valid,
+	// or it panics.
+	UpdatePeer(id types.ID, urls []string)
+	// ActiveSince returns the time that the connection with the peer
+	// of the given id becomes active.
+	// If the connection is active since peer was added, it returns the adding time.
+	// If the connection is currently inactive, it returns zero time.
+	ActiveSince(id types.ID) time.Time
+	// ActivePeers returns the number of active peers.
+	ActivePeers() int
+	// Stop closes the connections and stops the transporter.
+	Stop()
 }
 
 type Transport struct {

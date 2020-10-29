@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/friendlyhank/etcd-hign/net/embed"
 	"github.com/friendlyhank/etcd-hign/net/pkg/osutil"
+	"github.com/friendlyhank/etcd-hign/net/server/embed"
 	"go.uber.org/zap"
 )
 

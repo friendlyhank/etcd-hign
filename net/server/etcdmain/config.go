@@ -3,8 +3,8 @@ package etcdmain
 import (
 	"flag"
 
-	"github.com/friendlyhank/etcd-hign/net/embed"
 	"github.com/friendlyhank/etcd-hign/net/pkg/flags"
+	"github.com/friendlyhank/etcd-hign/net/server/embed"
 )
 
 type config struct {
