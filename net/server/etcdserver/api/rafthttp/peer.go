@@ -27,6 +27,13 @@ const (
 	ConnWriteTimeout = 5 * time.Second
 
 	recvBufSize = 4096
+	// maxPendingProposals holds the proposals during one leader election process.
+	// Generally one leader election takes at most 1 sec. It should have
+	// 0-2 election conflicts, and each one takes 0.5 sec.
+	// We assume the number of concurrent proposers is smaller than 4096.
+	// One client blocks on its proposal for at least 1 sec, so 4096 is enough
+	// to hold all proposals.
+	maxPendingProposals = 4096
 
 	streamAppV2 = "streamMsgAppV2"
 	streamMsg   = "streamMsg"
@@ -39,12 +46,22 @@ type Peer interface {
 	// When it fails to send message out, it will report the status to underlying
 	// raft.
 	send(m raftpb.Message)
+
+	// update updates the urls of remote peer.
+	update(urls types.URLs)
+
 	// attachOutgoingConn attaches the outgoing connection to the peer for
 	// stream usage. After the call, the ownership of the outgoing
 	// connection hands over to the peer. The peer will close the connection
 	// when it is no longer used.
 	//这是节点stream的连接
 	attachOutgoingConn(conn *outgoingConn)
+	// activeSince returns the time that the connection with the
+	// peer becomes active.
+	activeSince() time.Time
+	// stop performs any necessary finalization and terminates the peer
+	// elegantly.
+	stop()
 }
 
 type peer struct {
@@ -67,7 +84,8 @@ type peer struct {
 	recvc chan raftpb.Message
 	propc chan raftpb.Message
 
-	mu sync.Mutex
+	mu     sync.Mutex
+	paused bool
 
 	cancel context.CancelFunc // cancel pending works in go routine created by peer.
 	stopc  chan struct{}
@@ -103,10 +121,11 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		id:             peerID,
 		status:         status,
 		picker:         picker,
-		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID), //启动streamv2写入流
-		writer:         startStreamWriter(t.Logger, t.ID, peerID), //启动stream写入流
+		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID, status), //启动streamv2写入流
+		writer:         startStreamWriter(t.Logger, t.ID, peerID, status), //启动stream写入流
 		pipeline:       pipeline,
 		recvc:          make(chan raftpb.Message, recvBufSize),
+		propc:          make(chan raftpb.Message, maxPendingProposals),
 		stopc:          make(chan struct{}),
 	}
 
@@ -168,13 +187,48 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 }
 
 func (p *peer) send(m raftpb.Message) {
-	//writec, name := p.pick(m)
-	//select {
-	//case writec <- m:
-	//	fmt.Println(name)
-	//default:
-	//
-	//}
+	p.mu.Lock()
+	paused := p.paused
+	p.mu.Unlock()
+
+	if paused {
+		return
+	}
+
+	writec, name := p.pick(m)
+	select {
+	case writec <- m:
+	default:
+		if p.status.isActive() {
+			if p.lg != nil {
+				p.lg.Warn(
+					"dropped internal Raft message since sending buffer is full (overloaded network)",
+					zap.String("message-type", m.Type.String()),
+					zap.String("local-member-id", p.localID.String()),
+					zap.String("from", types.ID(m.From).String()),
+					zap.String("remote-peer-id", p.id.String()),
+					zap.String("remote-peer-name", name),
+					zap.Bool("remote-peer-active", p.status.isActive()),
+				)
+			}
+		} else {
+			if p.lg != nil {
+				p.lg.Warn(
+					"dropped internal Raft message since sending buffer is full (overloaded network)",
+					zap.String("message-type", m.Type.String()),
+					zap.String("local-member-id", p.localID.String()),
+					zap.String("from", types.ID(m.From).String()),
+					zap.String("remote-peer-id", p.id.String()),
+					zap.String("remote-peer-name", name),
+					zap.Bool("remote-peer-active", p.status.isActive()),
+				)
+			}
+		}
+	}
+}
+
+func (p *peer) update(urls types.URLs) {
+
 }
 
 func (p *peer) attachOutgoingConn(conn *outgoingConn) {
@@ -194,6 +248,61 @@ func (p *peer) attachOutgoingConn(conn *outgoingConn) {
 	}
 }
 
-func (p *peer) pick(m raftpb.Message) (writec chan<- raftpb.Message, picked string) {
-	return p.writer.msgc, streamMsg
+func (p *peer) activeSince() time.Time { return p.status.activeSince() }
+
+// Pause pauses the peer. The peer will simply drops all incoming
+// messages without returning an error.
+func (p *peer) Pause() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.paused = true
+	p.msgAppReader.pause()
+	p.msgAppV2Reader.pause()
 }
+
+func (p *peer) Resume() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.paused = false
+	p.msgAppReader.resume()
+	p.msgAppV2Reader.resume()
+}
+
+func (p *peer) stop() {
+	if p.lg != nil {
+		p.lg.Info("stopping remote peer", zap.String("remote-peer-id", p.id.String()))
+	}
+
+	defer func() {
+		if p.lg != nil {
+			p.lg.Info("stopped remote peer", zap.String("remote-peer-id", p.id.String()))
+		}
+	}()
+	close(p.stopc)
+	p.cancel()
+	p.msgAppV2Writer.stop()
+	p.writer.stop()
+	p.pipeline.stop()
+	p.msgAppV2Reader.stop()
+	p.msgAppReader.stop()
+}
+
+func (p *peer) pick(m raftpb.Message) (writec chan<- raftpb.Message, picked string) {
+	var ok bool
+	// Considering MsgSnap may have a big size, e.g., 1G, and will block
+	// stream for a long time, only use one of the N pipelines to send MsgSnap.
+	if isMsgSnap(m) {
+		return p.pipeline.msgc, pipelineMsg
+	} else if writec, ok = p.msgAppV2Writer.writec(); ok && isMsgApp(m) {
+		//如果streamAppV2处于工作状态，并且消息类型是MsgApp
+		return writec, streamAppV2
+	} else if writec, ok = p.writer.writec(); ok {
+		return writec, streamMsg
+	}
+	return p.pipeline.msgc, pipelineMsg
+}
+
+func isMsgApp(m raftpb.Message) bool { return m.Type == raftpb.MsgApp }
+
+//是否快照消息
+func isMsgSnap(m raftpb.Message) bool { return m.Type == raftpb.MsgSnap }

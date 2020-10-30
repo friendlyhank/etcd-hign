@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/time/rate"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
@@ -28,6 +29,20 @@ const (
 
 var (
 	errUnsupportedStreamType = fmt.Errorf("unsupported stream type")
+
+	// the key is in string format "major.minor.patch"
+	supportedStream = map[string][]streamType{
+		"2.0.0": {},
+		"2.1.0": {streamTypeMsgAppV2, streamTypeMessage},
+		"2.2.0": {streamTypeMsgAppV2, streamTypeMessage},
+		"2.3.0": {streamTypeMsgAppV2, streamTypeMessage},
+		"3.0.0": {streamTypeMsgAppV2, streamTypeMessage},
+		"3.1.0": {streamTypeMsgAppV2, streamTypeMessage},
+		"3.2.0": {streamTypeMsgAppV2, streamTypeMessage},
+		"3.3.0": {streamTypeMsgAppV2, streamTypeMessage},
+		"3.4.0": {streamTypeMsgAppV2, streamTypeMessage},
+		"3.5.0": {streamTypeMsgAppV2, streamTypeMessage},
+	}
 )
 
 type streamType string //流的类型 v2|v3的流
@@ -96,14 +111,18 @@ type streamWriter struct {
 	done  chan struct{}
 }
 
-func startStreamWriter(lg *zap.Logger, local, id types.ID) *streamWriter {
+func startStreamWriter(lg *zap.Logger, local, id types.ID, status *peerStatus) *streamWriter {
 	w := &streamWriter{
+		lg: lg,
+
 		localID: local,
 		peerID:  id,
-		msgc:    make(chan raftpb.Message, streamBufSize),
-		connc:   make(chan *outgoingConn),
-		stopc:   make(chan struct{}),
-		done:    make(chan struct{}),
+
+		status: status,
+		msgc:   make(chan raftpb.Message, streamBufSize),
+		connc:  make(chan *outgoingConn),
+		stopc:  make(chan struct{}),
+		done:   make(chan struct{}),
 	}
 	go w.run()
 	return w
@@ -190,6 +209,9 @@ func (cw *streamWriter) run() {
 			case streamTypeMessage:
 				enc = &messageEncoder{w: conn.Writer}
 			default:
+				if cw.lg != nil {
+					cw.lg.Panic("unhandled stream type", zap.String("stream-type", t.String()))
+				}
 			}
 			if cw.lg != nil {
 				cw.lg.Info(
@@ -217,7 +239,7 @@ func (cw *streamWriter) run() {
 				}
 			}
 			if cw.lg != nil {
-				cw.lg.Warn(
+				cw.lg.Info(
 					"established TCP streaming connection with remote peer",
 					zap.String("stream-writer-type", t.String()),
 					zap.String("local-member-id", cw.localID.String()),
@@ -248,6 +270,12 @@ func (cw *streamWriter) run() {
 	}
 }
 
+func (cw *streamWriter) writec() (chan<- raftpb.Message, bool) {
+	cw.mu.Lock()
+	defer cw.mu.Unlock()
+	return cw.msgc, cw.working
+}
+
 func (cw *streamWriter) close() bool {
 	cw.mu.Lock()
 	defer cw.mu.Unlock()
@@ -267,6 +295,9 @@ func (cw *streamWriter) closeUnlocked() bool {
 			)
 		}
 	}
+	if len(cw.msgc) > 0 {
+
+	}
 	cw.msgc = make(chan raftpb.Message, streamBufSize)
 	cw.working = false
 	return true
@@ -280,6 +311,11 @@ func (cw *streamWriter) attach(conn *outgoingConn) bool {
 	case <-cw.done:
 		return false
 	}
+}
+
+func (cw *streamWriter) stop() {
+	close(cw.stopc)
+	<-cw.done
 }
 
 // streamReader is a long-running go-routine that dials to the remote stream
@@ -505,7 +541,19 @@ func (cr *streamReader) dial(t streamType) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("failed to make http request to %v (%v)", u, err)
 	}
 	req.Header.Set("X-Server-From", cr.tr.ID.String())
+	req.Header.Set("X-Etcd-Cluster-ID", cr.tr.ClusterID.String())
 	req.Header.Set("X-Raft-To", cr.peerID.String())
+
+	req = req.WithContext(cr.ctx)
+
+	cr.mu.Lock()
+	select {
+	case <-cr.ctx.Done():
+		cr.mu.Unlock()
+		return nil, fmt.Errorf("stream reader is stopped")
+	default:
+	}
+	cr.mu.Unlock()
 
 	resp, err := cr.tr.streamRt.RoundTrip(req)
 	if err != nil {
@@ -538,4 +586,28 @@ func (cr *streamReader) close() {
 		}
 	}
 	cr.closer = nil
+}
+
+func (cr *streamReader) pause() {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	cr.paused = true
+}
+
+func (cr *streamReader) resume() {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	cr.paused = false
+}
+
+// checkStreamSupport checks whether the stream type is supported in the
+// given version.
+func checkStreamSupport(v *semver.Version, t streamType) bool {
+	nv := &semver.Version{Major: v.Major, Minor: v.Minor}
+	for _, s := range supportedStream[nv.String()] {
+		if s == t {
+			return true
+		}
+	}
+	return false
 }

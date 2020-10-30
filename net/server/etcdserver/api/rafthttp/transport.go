@@ -133,17 +133,32 @@ func (t *Transport) Get(id types.ID) Peer {
 func (t *Transport) Send(msgs []raftpb.Message) {
 	for _, m := range msgs {
 		if m.To == 0 {
+			// ignore intentionally dropped message
 			continue
 		}
 		to := types.ID(m.To)
 
 		t.mu.RLock()
 		p, pok := t.peers[to]
+		g, rok := t.remotes[to]
 		t.mu.RUnlock()
 
 		if pok {
 			p.send(m)
 			continue
+		}
+
+		if rok {
+			g.send(m)
+			continue
+		}
+
+		if t.Logger != nil {
+			t.Logger.Debug(
+				"ignored message send request; unknown remote peer target",
+				zap.String("type", m.Type.String()),
+				zap.String("unknown-target-peer-id", to.String()),
+			)
 		}
 	}
 }
@@ -152,7 +167,9 @@ func (t *Transport) Stop() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for _, r := range t.remotes {
-
+		r.stop()
+	}
+	for _, p := range t.peers {
 	}
 }
 
