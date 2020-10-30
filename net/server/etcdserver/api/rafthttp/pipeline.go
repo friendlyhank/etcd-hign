@@ -55,6 +55,18 @@ func (p *pipeline) start() {
 	}
 }
 
+func (p *pipeline) stop() {
+	close(p.stopc)
+	p.wg.Wait()
+	if p.tr != nil && p.tr.Logger != nil {
+		p.tr.Logger.Info(
+			"stopped HTTP pipelining with remote peer",
+			zap.String("local-member-id", p.tr.ID.String()),
+			zap.String("remote-peer-id", p.peerID.String()),
+		)
+	}
+}
+
 func (p *pipeline) handle() {
 	defer p.wg.Done()
 	for {
