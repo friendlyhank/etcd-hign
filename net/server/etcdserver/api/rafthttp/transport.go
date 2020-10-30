@@ -170,7 +170,16 @@ func (t *Transport) Stop() {
 		r.stop()
 	}
 	for _, p := range t.peers {
+		p.stop()
 	}
+	if tr, ok := t.streamRt.(*http.Transport); ok {
+		tr.CloseIdleConnections()
+	}
+	if tr, ok := t.pipelineRt.(*http.Transport); ok {
+		tr.CloseIdleConnections()
+	}
+	t.peers = nil
+	t.remotes = nil
 }
 
 func (t *Transport) AddRemote(id types.ID, us []string) {
