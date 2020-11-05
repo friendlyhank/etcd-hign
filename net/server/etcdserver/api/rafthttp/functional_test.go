@@ -21,8 +21,8 @@ func TestSendMessage(t *testing.T) {
 
 	//member 2
 	tr2 := &Transport{
-		ID:        types.ID(1),
-		ClusterID: types.ID(2),
+		ID:        types.ID(2),
+		ClusterID: types.ID(1),
 	}
 	tr2.Start()
 	srv2 := httptest.NewServer(tr.Handler())
