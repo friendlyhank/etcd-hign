@@ -71,6 +71,8 @@ type peer struct {
 	// id of the remote raft peer node 除本地节点外的某个节点
 	id types.ID
 
+	r Raft
+
 	status *peerStatus
 
 	picker *urlPicker
@@ -104,12 +106,13 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 	status := newPeerStatus(t.Logger, t.ID, peerID)
 	picker := newURLPicker(urls)
 	errorc := t.ErrorC
-
+	r := t.Raft
 	pipeline := &pipeline{
 		peerID: peerID,
 		tr:     t,
 		picker: picker,
 		status: status,
+		raft:   r,
 		errorc: errorc,
 	}
 	//启动pipeline start
@@ -119,6 +122,7 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		lg:             t.Logger,
 		localID:        t.ID,
 		id:             peerID,
+		r:              r,
 		status:         status,
 		picker:         picker,
 		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID, status), //启动streamv2写入流
@@ -135,8 +139,11 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		for {
 			select {
 			case mm := <-p.recvc:
-				fmt.Println(mm)
-				fmt.Println(ctx)
+				if err := r.Process(ctx, mm); err != nil {
+					if t.Logger != nil {
+						t.Logger.Warn("failed to process Raft message", zap.Error(err))
+					}
+				}
 			case <-p.stopc:
 				return
 			}
