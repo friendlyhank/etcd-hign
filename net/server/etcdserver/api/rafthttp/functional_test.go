@@ -25,7 +25,7 @@ func TestSendMessage(t *testing.T) {
 		ClusterID: types.ID(1),
 	}
 	tr2.Start()
-	srv2 := httptest.NewServer(tr.Handler())
+	srv2 := httptest.NewServer(tr2.Handler())
 	defer srv2.Close()
 
 	tr.AddPeer(types.ID(2), []string{srv2.URL})

@@ -286,15 +286,6 @@ func (cw *streamWriter) closeUnlocked() bool {
 	if !cw.working {
 		return false
 	}
-	if err := cw.closer.Close(); err != nil {
-		if cw.lg != nil {
-			cw.lg.Warn(
-				"failed to close connection with remote peer",
-				zap.String("remote-peer-id", cw.peerID.String()),
-				zap.Error(err),
-			)
-		}
-	}
 	if len(cw.msgc) > 0 {
 
 	}

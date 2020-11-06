@@ -104,12 +104,22 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//获取指定的peer
 	p := h.peerGetter.Get(from)
 	if p == nil {
+		h.lg.Warn(
+			"failed to find remote peer in cluster",
+			zap.String("local-member-id", h.tr.ID.String()),
+			zap.String("remote-peer-id-stream-handler", h.id.String()),
+			zap.String("remote-peer-id-from", from.String()),
+			zap.String("cluster-id", h.cid.String()),
+		)
 		http.Error(w, "error sender not found", http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+	w.(http.Flusher).Flush()
+
 	conn := &outgoingConn{
 		t:       t,
+		Writer:  w,
 		Flusher: w.(http.Flusher),
 		localID: h.tr.ID,
 		peerID:  from,
