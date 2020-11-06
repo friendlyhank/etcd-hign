@@ -127,8 +127,8 @@ func (t *Transport) Handler() http.Handler {
 	 *StreamHandler
 	 *SnapHandler
 	 */
-	pipelineHandler := newPipelineHandler(t, t.ClusterID)
-	streamHandler := newStreamHandler(t, t, t.ID, t.ClusterID)
+	pipelineHandler := newPipelineHandler(t, t.Raft, t.ClusterID)
+	streamHandler := newStreamHandler(t, t, t.Raft, t.ID, t.ClusterID)
 	mux := http.NewServeMux()
 	mux.Handle(RaftPrefix, pipelineHandler)
 	mux.Handle(RaftStreamPrefix+"/", streamHandler)

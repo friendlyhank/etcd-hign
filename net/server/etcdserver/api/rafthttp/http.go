@@ -1,12 +1,29 @@
 package rafthttp
 
 import (
+	"context"
+	"io/ioutil"
 	"net/http"
 	"path"
 
-	"go.uber.org/zap"
+	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 
+	pioutil "github.com/friendlyhank/etcd-hign/net/pkg/ioutil"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"go.uber.org/zap"
+)
+
+const (
+	// connReadLimitByte limits the number of bytes
+	// a single read can read out.
+	//
+	// 64KB should be large enough for not causing
+	// throughput bottleneck as well as small enough
+	// for not causing a read timeout.
+	connReadLimitByte = 64 * 1024
+
+	// snapshotLimitByte limits the snapshot size to 1TB
+	snapshotLimitByte = 1 * 1024 * 1024 * 1024 * 1024
 )
 
 var (
@@ -22,6 +39,7 @@ type pipelineHandler struct {
 	lg      *zap.Logger
 	localID types.ID
 	tr      *Transport
+	r       Raft
 	cid     types.ID
 }
 
@@ -30,32 +48,68 @@ type pipelineHandler struct {
 //
 // The handler reads out the raft message from request body,
 // and forwards it to the given raft state machine for processing.
-func newPipelineHandler(t *Transport, cid types.ID) http.Handler {
+func newPipelineHandler(t *Transport, r Raft, cid types.ID) http.Handler {
 	return &pipelineHandler{
 		lg:      t.Logger,
 		localID: t.ID,
 		tr:      t,
+		r:       r,
 		cid:     cid,
 	}
 }
 
 func (h *pipelineHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.Header().Set("Allow", "POST")
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
+	// Limit the data size that could be read from the request body, which ensures that read from
+	// connection will not time out accidentally due to possible blocking in underlying implementation.
+	limitedr := pioutil.NewLimitedBufferReader(r.Body, connReadLimitByte)
+	b, err := ioutil.ReadAll(limitedr)
+	if err != nil {
+		h.lg.Warn(
+			"failed to read Raft message",
+			zap.String("local-member-id", h.localID.String()),
+			zap.Error(err),
+		)
+		http.Error(w, "error reading raft message", http.StatusBadRequest)
+		return
+	}
+
+	var m raftpb.Message
+	if err := m.Unmarshal(b); err != nil {
+		h.lg.Warn(
+			"failed to unmarshal Raft message",
+			zap.String("local-member-id", h.localID.String()),
+			zap.Error(err),
+		)
+		http.Error(w, "error unmarshalling raft message", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.r.Process(context.TODO(), m); err != nil {
+
+	}
 }
 
 type streamHandler struct {
 	lg         *zap.Logger
 	tr         *Transport
 	peerGetter peerGetter
+	r          Raft
 	id         types.ID
 	cid        types.ID
 }
 
-func newStreamHandler(t *Transport, pg peerGetter, id, cid types.ID) http.Handler {
+func newStreamHandler(t *Transport, pg peerGetter, r Raft, id, cid types.ID) http.Handler {
 	h := &streamHandler{
 		lg:         t.Logger,
 		tr:         t,
 		peerGetter: pg,
+		r:          r,
 		id:         id,
 		cid:        cid,
 	}
