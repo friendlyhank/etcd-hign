@@ -252,3 +252,23 @@ func (t *Transport) AddPeer(id types.ID, us []string) {
 		)
 	}
 }
+
+func (t *Transport) RemovePeer(id types.ID) {
+
+}
+
+func (t *Transport) RemoveAllPeers() {
+
+}
+
+func (t *Transport) UpdatePeer(id types.ID, us []string) {
+
+}
+
+func (t *Transport) ActiveSince(id types.ID) time.Time {
+	return time.Now()
+}
+
+func (t *Transport) ActivePeers() (cnt int) {
+	return 0
+}
