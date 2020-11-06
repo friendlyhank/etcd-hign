@@ -122,6 +122,7 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		t:       t,
 		Writer:  w,
 		Flusher: w.(http.Flusher),
+		Closer:  c,
 		localID: h.tr.ID,
 		peerID:  from,
 	}

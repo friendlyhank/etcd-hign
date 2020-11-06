@@ -2,6 +2,7 @@ package rafthttp
 
 import (
 	"context"
+	"fmt"
 	"net/http/httptest"
 	"reflect"
 	"testing"
@@ -64,6 +65,7 @@ func TestSendMessage(t *testing.T) {
 		if !reflect.DeepEqual(msg, tt) {
 			t.Errorf("#%d: msg = %+v, want %+v", i, msg, tt)
 		}
+		fmt.Println(msg)
 	}
 }
 

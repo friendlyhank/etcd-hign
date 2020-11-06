@@ -2,7 +2,6 @@ package rafthttp
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -157,7 +156,11 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		for {
 			select {
 			case mm := <-p.propc:
-				fmt.Println(mm)
+				if err := r.Process(ctx, mm); err != nil {
+					if t.Logger != nil {
+						t.Logger.Warn("failed to process Raft message", zap.Error(err))
+					}
+				}
 			case <-p.stopc:
 				return
 			}
