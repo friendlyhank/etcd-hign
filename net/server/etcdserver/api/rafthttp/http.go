@@ -117,6 +117,7 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.(http.Flusher).Flush()
 
+	c := newCloseNotifier()
 	conn := &outgoingConn{
 		t:       t,
 		Writer:  w,
@@ -125,4 +126,22 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		peerID:  from,
 	}
 	p.attachOutgoingConn(conn)
+	<-c.closeNotify()
 }
+
+type closeNotifier struct {
+	done chan struct{}
+}
+
+func newCloseNotifier() *closeNotifier {
+	return &closeNotifier{
+		done: make(chan struct{}),
+	}
+}
+
+func (n *closeNotifier) Close() error {
+	close(n.done)
+	return nil
+}
+
+func (n *closeNotifier) closeNotify() <-chan struct{} { return n.done }

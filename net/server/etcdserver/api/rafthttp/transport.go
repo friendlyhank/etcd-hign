@@ -1,9 +1,12 @@
 package rafthttp
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/friendlyhank/etcd-hign/net/raft"
 
 	"golang.org/x/time/rate"
 
@@ -15,6 +18,13 @@ import (
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 )
+
+type Raft interface {
+	Process(ctx context.Context, m raftpb.Message) error
+	IsIDRemoved(id uint64) bool
+	ReportUnreachable(id uint64)
+	ReportSnapshot(id uint64, status raft.SnapshotStatus)
+}
 
 // Transporter -网络接口核心
 type Transporter interface {
@@ -76,6 +86,7 @@ type Transport struct {
 	ID        types.ID   //local member ID 当前节点的唯一id
 	URLs      types.URLs // local peer URLs
 	ClusterID types.ID   // raft cluster ID for request validation
+	Raft      Raft
 	// ErrorC is used to report detected critical errors, e.g.,
 	// the member has been permanently removed from the cluster
 	// When an error is received from ErrorC, user should stop raft state

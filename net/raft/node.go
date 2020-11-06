@@ -4,6 +4,8 @@ import (
 	pb "github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 )
 
+type SnapshotStatus int
+
 type Ready struct {
 	Messages []pb.Message
 }

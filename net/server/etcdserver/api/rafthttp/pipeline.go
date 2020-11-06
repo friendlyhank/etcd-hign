@@ -30,6 +30,7 @@ type pipeline struct {
 	tr     *Transport
 	picker *urlPicker
 	status *peerStatus
+	raft   Raft
 	errorc chan error
 
 	msgc chan raftpb.Message
