@@ -49,13 +49,17 @@ type pipelineHandler struct {
 // The handler reads out the raft message from request body,
 // and forwards it to the given raft state machine for processing.
 func newPipelineHandler(t *Transport, r Raft, cid types.ID) http.Handler {
-	return &pipelineHandler{
+	h := &pipelineHandler{
 		lg:      t.Logger,
 		localID: t.ID,
 		tr:      t,
 		r:       r,
 		cid:     cid,
 	}
+	if h.lg == nil {
+		h.lg = zap.NewNop()
+	}
+	return h
 }
 
 func (h *pipelineHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -112,6 +116,9 @@ func newStreamHandler(t *Transport, pg peerGetter, r Raft, id, cid types.ID) htt
 		r:          r,
 		id:         id,
 		cid:        cid,
+	}
+	if h.lg == nil {
+		h.lg = zap.NewNop()
 	}
 	return h
 }
