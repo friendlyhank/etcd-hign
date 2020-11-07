@@ -66,6 +66,16 @@ func TestServeRaftPrefix(t *testing.T) {
 			"0",
 			http.StatusBadRequest,
 		},
+		{
+			// good request, wrong cluster ID
+			"POST",
+			bytes.NewReader(
+				pbutil.MustMarshal(&raftpb.Message{}),
+			),
+			&fakeRaft{},
+			"1", //集群有唯一ID,集群中的每个节点有唯一ID
+			http.StatusPreconditionFailed,
+		},
 	}
 
 	for i, tt := range testCases {

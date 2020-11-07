@@ -2,6 +2,7 @@ package rafthttp
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -29,6 +30,9 @@ const (
 var (
 	RaftPrefix       = "/raft"
 	RaftStreamPrefix = path.Join(RaftPrefix, "stream")
+
+	errIncompatibleVersion = errors.New("incompatible version")
+	errClusterIDMismatch   = errors.New("cluster ID mismatch")
 )
 
 type peerGetter interface {
@@ -66,6 +70,13 @@ func (h *pipelineHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.Header().Set("Allow", "POST")
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("X-Etcd-Cluster-ID", h.cid.String())
+
+	if err := checkClusterCompatibilityFromHeader(h.lg, h.localID, r.Header, h.cid); err != nil {
+		http.Error(w, err.Error(), http.StatusPreconditionFailed)
 		return
 	}
 
@@ -189,6 +200,69 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	p.attachOutgoingConn(conn)
 	<-c.closeNotify()
+}
+
+// checkClusterCompatibilityFromHeader checks the cluster compatibility of
+// the local member from the given header.
+// It checks whether the version of local member is compatible with
+// the versions in the header, and whether the cluster ID of local member
+// matches the one in the header.
+func checkClusterCompatibilityFromHeader(lg *zap.Logger, localID types.ID, header http.Header, cid types.ID) error {
+	remoteName := header.Get("X-Server-From")
+
+	remoteServer := serverVersion(header)
+	remoteVs := ""
+	if remoteServer != nil {
+		remoteVs = remoteServer.String()
+	}
+
+	remoteMinClusterVer := minClusterVersion(header)
+	remoteMinClusterVs := ""
+	if remoteMinClusterVer != nil {
+		remoteMinClusterVs = remoteMinClusterVer.String()
+	}
+
+	localServer, localMinCluster, err := checkVersionCompatibility(remoteName, remoteServer, remoteMinClusterVer)
+
+	localVs := ""
+	if localServer != nil {
+		localVs = localServer.String()
+	}
+	localMinClusterVs := ""
+	if localMinCluster != nil {
+		localMinClusterVs = localMinCluster.String()
+	}
+
+	if err != nil {
+		lg.Warn(
+			"failed to check version compatibility",
+			zap.String("local-member-id", localID.String()),
+			zap.String("local-member-cluster-id", cid.String()),
+			zap.String("local-member-server-version", localVs),
+			zap.String("local-member-server-minimum-cluster-version", localMinClusterVs),
+			zap.String("remote-peer-server-name", remoteName),
+			zap.String("remote-peer-server-version", remoteVs),
+			zap.String("remote-peer-server-minimum-cluster-version", remoteMinClusterVs),
+			zap.Error(err),
+		)
+		return errIncompatibleVersion
+	}
+
+	if gcid := header.Get("X-Etcd-Cluster-ID"); gcid != cid.String() {
+		lg.Warn(
+			"request cluster ID mismatch",
+			zap.String("local-member-id", localID.String()),
+			zap.String("local-member-cluster-id", cid.String()),
+			zap.String("local-member-server-version", localVs),
+			zap.String("local-member-server-minimum-cluster-version", localMinClusterVs),
+			zap.String("remote-peer-server-name", remoteName),
+			zap.String("remote-peer-server-version", remoteVs),
+			zap.String("remote-peer-server-minimum-cluster-version", remoteMinClusterVs),
+			zap.String("remote-peer-cluster-id", gcid),
+		)
+		return errClusterIDMismatch
+	}
+	return nil
 }
 
 type closeNotifier struct {
