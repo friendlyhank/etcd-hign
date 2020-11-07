@@ -6,8 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/snap"
 
 	"go.uber.org/zap"
 
@@ -17,6 +21,7 @@ import (
 	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
 )
 
+//测试pipelineHandler
 func TestServeRaftPrefix(t *testing.T) {
 	testCases := []struct {
 		method    string
@@ -148,6 +153,54 @@ func TestServeRaftPrefix(t *testing.T) {
 	}
 }
 
+func TestServeRaftStreamPrefix(t *testing.T) {
+	tests := []struct {
+		path  string
+		wtype streamType
+	}{
+		{
+			RaftStreamPrefix + "/message/1",
+			streamTypeMessage,
+		},
+		{
+			RaftStreamPrefix + "/msgapp/1",
+			streamTypeMsgAppV2,
+		},
+	}
+
+	for i, tt := range tests {
+		req, err := http.NewRequest("GET", "http://localhost:2380"+tt.path, nil)
+		if err != nil {
+			t.Fatalf("#%d: could not create request: %#v", i, err)
+		}
+		req.Header.Set("X-Etcd-Cluster-ID", "1")
+		req.Header.Set("X-Server-Version", version.Version)
+		req.Header.Set("X-Raft-To", "2")
+
+		peer := newFakePeer()
+		peerGetter := &fakePeerGetter{peers: map[types.ID]Peer{types.ID(1): peer}}
+		tr := &Transport{}
+		h := newStreamHandler(tr, peerGetter, &fakeRaft{}, types.ID(2), types.ID(1))
+
+		rw := httptest.NewRecorder()
+		go h.ServeHTTP(rw, req)
+
+		var conn *outgoingConn
+		select {
+		case conn = <-peer.connc:
+		case <-time.After(time.Second):
+			t.Fatalf("#%d: failed to attach outgoingConn", i)
+		}
+		if g := rw.Header().Get("X-Server-Version"); g != version.Version {
+			t.Errorf("#%d: X-Server-Version = %s, want %s", i, g, version.Version)
+		}
+		if conn.t != tt.wtype {
+			t.Errorf("#%d: type = %s, want %s", i, conn.t, tt.wtype)
+		}
+		conn.Close()
+	}
+}
+
 // errReader implements io.Reader to facilitate a broken request.
 type errReader struct{}
 
@@ -159,3 +212,46 @@ type resWriterToError struct {
 
 func (e *resWriterToError) Error() string                 { return "" }
 func (e *resWriterToError) WriteTo(w http.ResponseWriter) { w.WriteHeader(e.code) }
+
+type fakePeerGetter struct {
+	peers map[types.ID]Peer
+}
+
+func (pg *fakePeerGetter) Get(id types.ID) Peer { return pg.peers[id] }
+
+type fakePeer struct {
+	msgs     []raftpb.Message
+	snapMsgs []snap.Message
+	peerURLs types.URLs
+	connc    chan *outgoingConn
+	paused   bool
+}
+
+func newFakePeer() *fakePeer {
+	fakeURL, _ := url.Parse("http://localhost")
+	return &fakePeer{
+		connc:    make(chan *outgoingConn, 1),
+		peerURLs: types.URLs{*fakeURL},
+	}
+}
+
+func (pr *fakePeer) send(m raftpb.Message) {
+	if pr.paused {
+		return
+	}
+	pr.msgs = append(pr.msgs, m)
+}
+
+func (pr *fakePeer) sendSnap(m snap.Message) {
+	if pr.paused {
+		return
+	}
+	pr.snapMsgs = append(pr.snapMsgs, m)
+}
+
+func (pr *fakePeer) update(urls types.URLs)                { pr.peerURLs = urls }
+func (pr *fakePeer) attachOutgoingConn(conn *outgoingConn) { pr.connc <- conn }
+func (pr *fakePeer) activeSince() time.Time                { return time.Time{} }
+func (pr *fakePeer) stop()                                 {}
+func (pr *fakePeer) Pause()                                { pr.paused = true }
+func (pr *fakePeer) Resume()                               { pr.paused = false }

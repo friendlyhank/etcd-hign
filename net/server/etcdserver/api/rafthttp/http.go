@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
+
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 
 	pioutil "github.com/friendlyhank/etcd-hign/net/pkg/ioutil"
@@ -142,6 +144,15 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Allow", "GET")
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
+
+	w.Header().Set("X-Server-Version", version.Version)
+	w.Header().Set("X-Etcd-Cluster-ID", h.cid.String())
+
+	if err := checkClusterCompatibilityFromHeader(h.lg, h.tr.ID, r.Header, h.cid); err != nil {
+		http.Error(w, err.Error(), http.StatusPreconditionFailed)
+		return
+	}
+
 	var t streamType
 	switch path.Dir(r.URL.Path) {
 	case streamTypeMsgAppV2.endpoint(h.lg):
