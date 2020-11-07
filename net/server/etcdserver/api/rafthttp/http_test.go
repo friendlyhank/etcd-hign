@@ -76,6 +76,50 @@ func TestServeRaftPrefix(t *testing.T) {
 			"1", //集群有唯一ID,集群中的每个节点有唯一ID
 			http.StatusPreconditionFailed,
 		},
+		//{
+		//	// good request, Processor failure
+		//	"POST",
+		//	bytes.NewReader(
+		//		pbutil.MustMarshal(&raftpb.Message{}),
+		//	),
+		//	&fakeRaft{
+		//		err: &resWriterToError{code: http.StatusForbidden}, //TODO 迟点再回来看这个干啥的
+		//	},
+		//	"0",
+		//	http.StatusForbidden,
+		//},
+		//{
+		//	// good request, Processor failure
+		//	"POST",
+		//	bytes.NewReader(
+		//		pbutil.MustMarshal(&raftpb.Message{}),
+		//	),
+		//	&fakeRaft{
+		//		err: &resWriterToError{code: http.StatusInternalServerError},
+		//	},
+		//	"0",
+		//	http.StatusInternalServerError,
+		//},
+		//{
+		//	// good request, Processor failure
+		//	"POST",
+		//	bytes.NewReader(
+		//		pbutil.MustMarshal(&raftpb.Message{}),
+		//	),
+		//	&fakeRaft{err: errors.New("blah")},
+		//	"0",
+		//	http.StatusInternalServerError,
+		//},
+		{
+			// good request
+			"POST",
+			bytes.NewReader(
+				pbutil.MustMarshal(&raftpb.Message{}),
+			),
+			&fakeRaft{},
+			"0",
+			http.StatusNoContent,
+		},
 	}
 
 	for i, tt := range testCases {
@@ -108,3 +152,10 @@ func TestServeRaftPrefix(t *testing.T) {
 type errReader struct{}
 
 func (er *errReader) Read(_ []byte) (int, error) { return 0, errors.New("some error") }
+
+type resWriterToError struct {
+	code int
+}
+
+func (e *resWriterToError) Error() string                 { return "" }
+func (e *resWriterToError) WriteTo(w http.ResponseWriter) { w.WriteHeader(e.code) }

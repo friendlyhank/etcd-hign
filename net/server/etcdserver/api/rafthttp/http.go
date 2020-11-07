@@ -108,6 +108,9 @@ func (h *pipelineHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := h.r.Process(context.TODO(), m); err != nil {
 
 	}
+	// Write StatusNoContent header after the message has been processed by
+	// raft, which facilitates the client to report MsgSnap status.
+	w.WriteHeader(http.StatusNoContent)
 }
 
 type streamHandler struct {
