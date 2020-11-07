@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -50,9 +51,17 @@ func TestServeRaftPrefix(t *testing.T) {
 			http.StatusMethodNotAllowed,
 		},
 		{
-			//bad method
+			//bad request body
 			"POST",
 			&errReader{}, //io读取错误
+			&fakeRaft{},
+			"0",
+			http.StatusBadRequest,
+		},
+		{
+			//bad request protobuf
+			"POST",
+			strings.NewReader("malformed garbage"),
 			&fakeRaft{},
 			"0",
 			http.StatusBadRequest,
