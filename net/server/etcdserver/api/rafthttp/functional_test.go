@@ -69,6 +69,60 @@ func TestSendMessage(t *testing.T) {
 	}
 }
 
+// TestSendMessageWhenStreamIsBroken tests that message can be sent to the
+// remote in a limited time when all underlying connections are broken.
+func TestSendMessageWhenStreamIsBroken(t *testing.T) {
+	// member 1
+	tr := &Transport{
+		ID:        types.ID(1),
+		ClusterID: types.ID(1),
+		Raft:      &fakeRaft{},
+	}
+	tr.Start()
+	srv := httptest.NewServer(tr.Handler())
+	defer srv.Close()
+
+	// member 2
+	recvc := make(chan raftpb.Message, 1)
+	p := &fakeRaft{recvc: recvc}
+	tr2 := &Transport{
+		ID:        types.ID(2),
+		ClusterID: types.ID(1),
+		Raft:      p,
+	}
+	tr2.Start()
+	srv2 := httptest.NewServer(tr2.Handler())
+	defer srv2.Close()
+
+	tr.AddPeer(types.ID(2), []string{srv2.URL})
+	defer tr.Stop()
+	tr2.AddPeer(types.ID(1), []string{srv.URL})
+	defer tr2.Stop()
+	if !waitStreamWorking(tr.Get(types.ID(2)).(*peer)) {
+		t.Fatalf("stream from 1 to 2 is not in work as expected")
+	}
+
+	//break the stream
+	srv.CloseClientConnections()
+	srv2.CloseClientConnections()
+	//测试断开连接之后重新建立连接需要的时间
+	var n int
+	for {
+		select {
+		// TODO: remove this resend logic when we add retry logic into the code
+		case <-time.After(time.Millisecond):
+			n++
+			tr.Send([]raftpb.Message{{Type: raftpb.MsgHeartbeat, From: 1, To: 2, Term: 1, Commit: 3}})
+		case msg := <-recvc:
+			fmt.Println(msg)
+			if n > 50 {
+				t.Errorf("disconnection time = %dms, want < 50ms", n)
+			}
+			return
+		}
+	}
+}
+
 func waitStreamWorking(p *peer) bool {
 	for i := 0; i < 1000; i++ {
 		time.Sleep(time.Millisecond)
