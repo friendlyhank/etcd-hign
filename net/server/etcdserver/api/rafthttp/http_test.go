@@ -3,6 +3,7 @@ package rafthttp
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -198,6 +199,125 @@ func TestServeRaftStreamPrefix(t *testing.T) {
 			t.Errorf("#%d: type = %s, want %s", i, conn.t, tt.wtype)
 		}
 		conn.Close()
+	}
+}
+
+func TestServeRaftStreamPrefixBad(t *testing.T) {
+	removedID := uint64(5)
+	tests := []struct {
+		method    string
+		path      string
+		clusterID string
+		remote    string
+
+		wcode int
+	}{
+		//bad method 错误的方法
+		{
+			"PUT",
+			RaftStreamPrefix + "/message/1",
+			"1",
+			"1",
+			http.StatusMethodNotAllowed,
+		},
+		// bad method 错误的方法
+		{
+			"POST",
+			RaftStreamPrefix + "/message/1",
+			"1",
+			"1",
+			http.StatusMethodNotAllowed,
+		},
+		// bad method 错误的方法
+		{
+			"DELETE",
+			RaftStreamPrefix + "/message/1",
+			"1",
+			"1",
+			http.StatusMethodNotAllowed,
+		},
+		// bad path 错误的请求路径
+		{
+			"GET",
+			RaftStreamPrefix + "/strange/1",
+			"1",
+			"1",
+			http.StatusNotFound,
+		},
+		// bad path 错误的请求路径
+		{
+			"GET",
+			RaftStreamPrefix + "/strange",
+			"1",
+			"1",
+			http.StatusNotFound,
+		},
+		// non-existent peer 不存在的节点
+		{
+			"GET",
+			RaftStreamPrefix + "/message/2",
+			"1",
+			"1",
+			http.StatusNotFound,
+		},
+		//removed peer
+		{
+			"GET",
+			RaftStreamPrefix + "/message/" + fmt.Sprint(removedID),
+			"1",
+			"1",
+			http.StatusGone,
+		},
+		// wrong cluster ID //错误的集群ID
+		//{
+		//	"GET",
+		//	RaftStreamPrefix + "/message/1",
+		//	"2",
+		//	"1",
+		//	http.StatusPreconditionFailed,
+		//},
+		// wrong remote id 错误的节点id
+		{
+			"GET",
+			RaftStreamPrefix + "/message/1",
+			"1",
+			"2",
+			http.StatusPreconditionFailed,
+		},
+	}
+	for i, tt := range tests {
+		req, err := http.NewRequest(tt.method, "http://localhost:2380"+tt.path, nil)
+		if err != nil {
+			t.Fatalf("#%d: could not create request: %#v", i, err)
+		}
+		req.Header.Set("X-Etcd-Cluster-ID", tt.clusterID)
+		req.Header.Set("X-Server-Version", version.Version)
+		req.Header.Set("X-Raft-To", tt.remote)
+		rw := httptest.NewRecorder()
+		tr := &Transport{}
+		peerGetter := &fakePeerGetter{peers: map[types.ID]Peer{types.ID(1): newFakePeer()}}
+		r := &fakeRaft{removedID: removedID}
+		h := newStreamHandler(tr, peerGetter, r, types.ID(1), types.ID(1))
+		h.ServeHTTP(rw, req)
+
+		if rw.Code != tt.wcode {
+			t.Errorf("#%d: code = %d, want %d", i, rw.Code, tt.wcode)
+		}
+	}
+}
+
+func TestCloseNotifier(t *testing.T) {
+	c := newCloseNotifier()
+	select {
+	case <-c.closeNotify():
+		t.Fatalf("received unexpected close notification")
+	default:
+	}
+	c.Close()
+	select {
+	case <-c.closeNotify():
+	default:
+		t.Fatalf("failed to get close notification")
 	}
 }
 

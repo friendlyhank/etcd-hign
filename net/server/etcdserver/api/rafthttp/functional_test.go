@@ -1,25 +1,15 @@
 package rafthttp
 
 import (
-<<<<<<< HEAD
 	"context"
 	"fmt"
-=======
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
->>>>>>> test
+	"github.com/friendlyhank/etcd-hign/net/raft"
+	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 	"net/http/httptest"
 	"reflect"
 	"testing"
 	"time"
-<<<<<<< HEAD
-
-	"github.com/friendlyhank/etcd-hign/net/raft"
-
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
-
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-=======
->>>>>>> test
 )
 
 func TestSendMessage(t *testing.T) {
