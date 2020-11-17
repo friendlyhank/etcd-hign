@@ -3,6 +3,7 @@ package rafthttp
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -213,7 +214,7 @@ func TestServeRaftStreamPrefixBad(t *testing.T) {
 
 		wcode int
 	}{
-		//bad method
+		//bad method 错误的方法
 		{
 			"PUT",
 			RaftStreamPrefix + "/message/1",
@@ -221,7 +222,7 @@ func TestServeRaftStreamPrefixBad(t *testing.T) {
 			"1",
 			http.StatusMethodNotAllowed,
 		},
-		//bad method
+		// bad method 错误的方法
 		{
 			"POST",
 			RaftStreamPrefix + "/message/1",
@@ -229,7 +230,7 @@ func TestServeRaftStreamPrefixBad(t *testing.T) {
 			"1",
 			http.StatusMethodNotAllowed,
 		},
-		//bad method
+		// bad method 错误的方法
 		{
 			"DELETE",
 			RaftStreamPrefix + "/message/1",
@@ -237,7 +238,7 @@ func TestServeRaftStreamPrefixBad(t *testing.T) {
 			"1",
 			http.StatusMethodNotAllowed,
 		},
-		//bad method
+		// bad path 错误的请求路径
 		{
 			"GET",
 			RaftStreamPrefix + "/strange/1",
@@ -245,7 +246,7 @@ func TestServeRaftStreamPrefixBad(t *testing.T) {
 			"1",
 			http.StatusNotFound,
 		},
-		// bad path
+		// bad path 错误的请求路径
 		{
 			"GET",
 			RaftStreamPrefix + "/strange",
@@ -278,6 +279,22 @@ func TestServeRaftStreamPrefixBad(t *testing.T) {
 			http.StatusPreconditionFailed,
 		},
 		//wrong remote id
+		{
+			"GET",
+			RaftStreamPrefix + "/message/" + fmt.Sprint(removedID),
+			"1",
+			"1",
+			http.StatusGone,
+		},
+		// wrong cluster ID //错误的集群ID
+		//{
+		//	"GET",
+		//	RaftStreamPrefix + "/message/1",
+		//	"2",
+		//	"1",
+		//	http.StatusPreconditionFailed,
+		//},
+		// wrong remote id 错误的节点id
 		{
 			"GET",
 			RaftStreamPrefix + "/message/1",

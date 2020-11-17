@@ -201,6 +201,21 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "error sender not found", http.StatusNotFound)
 		return
 	}
+
+	wto := h.id.String()
+	if gto := r.Header.Get("X-Raft-To");gto != wto{
+		h.lg.Warn(
+			"ignored streaming request; ID mismatch",
+			zap.String("local-member-id", h.tr.ID.String()),
+			zap.String("remote-peer-id-stream-handler", h.id.String()),
+			zap.String("remote-peer-id-header", gto),
+			zap.String("remote-peer-id-from", from.String()),
+			zap.String("cluster-id", h.cid.String()),
+		)
+		http.Error(w, "to field mismatch", http.StatusPreconditionFailed)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 	w.(http.Flusher).Flush()
 
@@ -295,4 +310,6 @@ func (n *closeNotifier) Close() error {
 	return nil
 }
 
-func (n *closeNotifier) closeNotify() <-chan struct{} { return n.done }
+func (n *closeNotifier) closeNotify() <-chan struct{} {
+	return n.done
+}
