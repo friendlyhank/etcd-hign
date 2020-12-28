@@ -68,6 +68,18 @@ func checkPostResponse(resp *http.Response, body []byte, req *http.Request, to t
 	}
 }
 
+// reportCriticalError reports the given error through sending it into
+// the given error channel.
+// If the error channel is filled up when sending error, it drops the error
+// because the fact that error has happened is reported, which is
+// good enough.
+func reportCriticalError(err error, errc chan<- error) {
+	select {
+	case errc <- err:
+	default:
+	}
+}
+
 // compareMajorMinorVersion returns an integer comparing two versions based on
 // their major and minor version. The result will be 0 if a==b, -1 if a < b,
 // and 1 if a > b.

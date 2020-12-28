@@ -3,6 +3,7 @@ package testutil
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,48 @@ type Recorder interface {
 	Action() []Action
 	// Chan returns the channel for actions published by Record
 	Chan() <-chan Action
+}
+
+// RecorderBuffered appends all Actions to a slice
+type RecorderBuffered struct {
+	sync.Mutex
+	actions []Action
+}
+
+func (r *RecorderBuffered) Record(a Action) {
+	r.Lock()
+	r.actions = append(r.actions, a)
+	r.Unlock()
+}
+
+func (r *RecorderBuffered) Action() []Action {
+	r.Lock()
+	cpy := make([]Action, len(r.actions))
+	copy(cpy, r.actions)
+	r.Unlock()
+	return cpy
+}
+
+func (r *RecorderBuffered) Wait(n int) (acts []Action, err error) {
+	// legacy racey behavior
+	WaitSchedule()
+	acts = r.Action()
+	if len(acts) < n {
+		err = newLenErr(n, len(acts))
+	}
+	return acts, err
+}
+
+func (r *RecorderBuffered) Chan() <-chan Action {
+	ch := make(chan Action)
+	go func() {
+		acts := r.Action()
+		for i := range acts {
+			ch <- acts[i]
+		}
+		close(ch)
+	}()
+	return ch
 }
 
 // RecorderStream writes all Actions to an unbuffered channel

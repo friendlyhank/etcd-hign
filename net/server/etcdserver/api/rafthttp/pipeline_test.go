@@ -3,6 +3,7 @@ package rafthttp
 import (
 	"io"
 	"net/http"
+	"sync"
 	"testing"
 
 	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
@@ -29,6 +30,27 @@ func TestPipelineSend(t *testing.T) {
 	if p.followerStats.Counts.Success != 1 {
 		t.Errorf("success = %d, want 1", p.followerStats.Counts.Success)
 	}
+}
+
+type respRoundTripper struct {
+	mu  sync.Mutex
+	rec testutil.Recorder
+
+	code   int
+	header http.Header
+	err    error
+}
+
+func newRespRoundTripper(code int, err error) *respRoundTripper {
+	return &respRoundTripper{code: code, err: err}
+}
+func (t *respRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.rec != nil {
+		t.rec.Record(testutil.Action{Name: "req", Params: []interface{}{req}})
+	}
+	return &http.Response{StatusCode: t.code, Header: t.header, Body: &nopReadCloser{}}, t.err
 }
 
 type roundTripperRecorder struct {

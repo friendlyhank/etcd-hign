@@ -45,6 +45,7 @@ func (ls *LeaderStats) Follower(name string) *FollowerStats {
 		fs.Latency.Minimum = 1 << 63
 		ls.Followers[name] = fs
 	}
+	return fs
 }
 
 // FollowerStats encapsulates various statistics about a follower in an etcd cluster

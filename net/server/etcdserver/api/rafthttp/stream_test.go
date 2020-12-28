@@ -1,6 +1,12 @@
 package rafthttp
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"github.com/friendlyhank/etcd-hign/net/pkg/testutil"
+	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -62,6 +68,102 @@ func TestStreamWriterAttachOutgoingConn(t *testing.T) {
 	}
 	if !wfc.Closed() {
 		t.Errorf("failed to close the underlying connection")
+	}
+}
+
+// TestStreamWriterAttachBadOutgoingConn tests that streamWriter with bad
+// outgoingConn will close the outgoingConn and fall back to non-working status.
+func TestStreamWriterAttachBadOutgoingConn(t *testing.T) {
+	sw := startStreamWriter(zap.NewExample(), types.ID(0), types.ID(1), newPeerStatus(zap.NewExample(), types.ID(0), types.ID(1)), &stats.FollowerStats{}, &fakeRaft{})
+	defer sw.stop()
+
+	wfc := newFakeWriteFlushCloser(errors.New("blah"))
+	sw.attach(&outgoingConn{t: streamTypeMessage, Writer: wfc, Flusher: wfc, Closer: wfc})
+
+	sw.msgc <- raftpb.Message{}
+	select {
+	case <-wfc.closed:
+	case <-time.After(time.Second):
+		t.Errorf("failed to close the underlying connection in time")
+	}
+	// no longer working
+	if _, ok := sw.writec(); ok {
+		t.Errorf("working = %v, want false", ok)
+	}
+}
+
+func TestStreamReaderDialRequest(t *testing.T) {
+	for i, tt := range []streamType{streamTypeMessage, streamTypeMsgAppV2} {
+		tr := &roundTripperRecorder{rec: &testutil.RecorderBuffered{}}
+		sr := &streamReader{
+			peerID: types.ID(2),
+			tr:     &Transport{streamRt: tr, ClusterID: types.ID(1), ID: types.ID(1)},
+			picker: mustNewURLPicker(t, []string{"http://localhost:2380"}),
+			ctx:    context.Background(),
+		}
+		sr.dial(tt)
+
+		act, err := tr.rec.Wait(1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := act[0].Params[0].(*http.Request)
+
+		wurl := fmt.Sprintf("http://localhost:2380" + tt.endpoint(zap.NewExample()) + "/1")
+		if req.URL.String() != wurl {
+			t.Errorf("#%d: url = %s, want %s", i, req.URL.String(), wurl)
+		}
+		if w := "GET"; req.Method != w {
+			t.Errorf("#%d: method = %s, want %s", i, req.Method, w)
+		}
+		if g := req.Header.Get("X-Etcd-Cluster-ID"); g != "1" {
+			t.Errorf("#%d: header X-Etcd-Cluster-ID = %s, want 1", i, g)
+		}
+		if g := req.Header.Get("X-Raft-To"); g != "2" {
+			t.Errorf("#%d: header X-Raft-To = %s, want 2", i, g)
+		}
+	}
+}
+
+// TestStreamReaderDialResult tests the result of the dial func call meets the
+// HTTP response received.
+func TestStreamReaderDialResult(t *testing.T) {
+	tests := []struct {
+		code  int
+		err   error
+		wok   bool
+		whalt bool
+	}{
+		{0, errors.New("blah"), false, false},
+		{http.StatusOK, nil, true, false},
+		{http.StatusMethodNotAllowed, nil, false, false},
+		{http.StatusNotFound, nil, false, false},
+		{http.StatusPreconditionFailed, nil, false, false},
+		{http.StatusGone, nil, false, true},
+	}
+	for i, tt := range tests {
+		h := http.Header{}
+		h.Add("X-Server-Version", version.Version)
+		tr := &respRoundTripper{
+			code:   tt.code,
+			header: h,
+			err:    tt.err,
+		}
+		sr := &streamReader{
+			peerID: types.ID(2),
+			tr:     &Transport{streamRt: tr, ClusterID: types.ID(1)},
+			picker: mustNewURLPicker(t, []string{"http://localhost:2380"}),
+			errorc: make(chan error, 1),
+			ctx:    context.Background(),
+		}
+
+		_, err := sr.dial(streamTypeMessage)
+		if ok := err == nil; ok != tt.wok {
+			t.Errorf("#%d: ok = %v, want %v", i, ok, tt.wok)
+		}
+		if halt := len(sr.errorc) > 0; halt != tt.whalt {
+			t.Errorf("#%d: halt = %v, want %v", i, halt, tt.whalt)
+		}
 	}
 }
 
