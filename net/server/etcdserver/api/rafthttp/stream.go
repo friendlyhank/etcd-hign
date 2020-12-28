@@ -565,7 +565,7 @@ func (cr *streamReader) dial(t streamType) (io.ReadCloser, error) {
 	}
 
 	switch resp.StatusCode {
-	case http.StatusGone: //请求端的目标资源在原服务器上不存在,说明已经被移除
+	case http.StatusGone: //请求端的目标资源在原服务器上不存在,说明已经被移除(如节点摘除)
 		reportCriticalError(errMemberRemoved, cr.errorc)
 		return nil, errMemberRemoved
 	case http.StatusOK:
