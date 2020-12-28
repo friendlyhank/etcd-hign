@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+
 	"golang.org/x/time/rate"
 
 	"github.com/coreos/go-semver/semver"
@@ -100,6 +102,7 @@ type streamWriter struct {
 	peerID  types.ID
 
 	status *peerStatus
+	fs     *stats.FollowerStats
 
 	mu      sync.Mutex
 	closer  io.Closer
@@ -111,7 +114,7 @@ type streamWriter struct {
 	done  chan struct{}
 }
 
-func startStreamWriter(lg *zap.Logger, local, id types.ID, status *peerStatus) *streamWriter {
+func startStreamWriter(lg *zap.Logger, local, id types.ID, status *peerStatus, fs *stats.FollowerStats, r Raft) *streamWriter {
 	w := &streamWriter{
 		lg: lg,
 
@@ -119,6 +122,7 @@ func startStreamWriter(lg *zap.Logger, local, id types.ID, status *peerStatus) *
 		peerID:  id,
 
 		status: status,
+		fs:     fs,
 		msgc:   make(chan raftpb.Message, streamBufSize),
 		connc:  make(chan *outgoingConn),
 		stopc:  make(chan struct{}),

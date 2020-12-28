@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+
 	"github.com/friendlyhank/etcd-hign/net/raft"
 
 	"golang.org/x/time/rate"
@@ -87,6 +89,9 @@ type Transport struct {
 	URLs      types.URLs // local peer URLs
 	ClusterID types.ID   // raft cluster ID for request validation
 	Raft      Raft
+	// used to record transportation statistics with followers when
+	// performing as leader in raft protocol
+	LeaderStats *stats.LeaderStats //领导者的统计信息
 	// ErrorC is used to report detected critical errors, e.g.,
 	// the member has been permanently removed from the cluster
 	// When an error is received from ErrorC, user should stop raft state
@@ -242,7 +247,8 @@ func (t *Transport) AddPeer(id types.ID, us []string) {
 			t.Logger.Panic("failed NewURLs", zap.Strings("urls", us), zap.Error(err))
 		}
 	}
-	t.peers[id] = startPeer(t, urls, id)
+	fs := t.LeaderStats.Follower(id.String())
+	t.peers[id] = startPeer(t, urls, id, fs)
 	if t.Logger != nil {
 		t.Logger.Info(
 			"added remote peer",

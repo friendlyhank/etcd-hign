@@ -8,11 +8,10 @@ import (
 	"time"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/pbutil"
-
-	"go.uber.org/zap"
-
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+	"go.uber.org/zap"
 )
 
 const (
@@ -32,6 +31,8 @@ type pipeline struct {
 	status *peerStatus
 	raft   Raft
 	errorc chan error
+	// deprecate when we depercate v2 API
+	followerStats *stats.FollowerStats
 
 	msgc chan raftpb.Message
 	// wait for the handling routines
@@ -73,15 +74,22 @@ func (p *pipeline) handle() {
 	for {
 		select {
 		case m := <-p.msgc:
-			//start := time.Now()
+			start := time.Now()
 			err := p.post(pbutil.MustMarshal(&m))
-			//end := time.Now()
+			end := time.Now()
 
 			if err != nil {
 				p.status.deactivate(failureType{source: pipelineMsg, action: "write"}, err.Error())
+
+				if m.Type == raftpb.MsgApp && p.followerStats != nil {
+					p.followerStats.Fail()
+				}
 				continue
 			}
 			p.status.activate()
+			if m.Type == raftpb.MsgApp && p.followerStats != nil {
+				p.followerStats.Succ(end.Sub(start))
+			}
 		case <-p.stopc:
 			return
 		}

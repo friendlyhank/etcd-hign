@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+
 	"golang.org/x/time/rate"
 
 	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
@@ -92,7 +94,7 @@ type peer struct {
 	stopc  chan struct{}
 }
 
-func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
+func startPeer(t *Transport, urls types.URLs, peerID types.ID, fs *stats.FollowerStats) *peer {
 	if t.Logger != nil {
 		t.Logger.Info("starting remote peer", zap.String("remote-peer-id", peerID.String()))
 	}
@@ -124,8 +126,8 @@ func startPeer(t *Transport, urls types.URLs, peerID types.ID) *peer {
 		r:              r,
 		status:         status,
 		picker:         picker,
-		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID, status), //启动streamv2写入流
-		writer:         startStreamWriter(t.Logger, t.ID, peerID, status), //启动stream写入流
+		msgAppV2Writer: startStreamWriter(t.Logger, t.ID, peerID, status, fs, r), //启动streamv2写入流
+		writer:         startStreamWriter(t.Logger, t.ID, peerID, status, fs, r), //启动stream写入流
 		pipeline:       pipeline,
 		recvc:          make(chan raftpb.Message, recvBufSize),
 		propc:          make(chan raftpb.Message, maxPendingProposals),
