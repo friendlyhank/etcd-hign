@@ -36,6 +36,19 @@ type leaderStats struct {
 	Followers map[string]*FollowerStats `json:"followers"`
 }
 
+// NewLeaderStats generates a new LeaderStats with the given id as leader
+func NewLeaderStats(lg *zap.Logger, id string) *LeaderStats {
+	if lg == nil {
+		lg = zap.NewNop()
+	}
+	return &LeaderStats{
+		lg: lg,
+		leaderStats: leaderStats{
+			Leader:    id,
+			Followers: make(map[string]*FollowerStats),
+		},
+	}
+}
 func (ls *LeaderStats) Follower(name string) *FollowerStats {
 	ls.Lock()
 	defer ls.Unlock()

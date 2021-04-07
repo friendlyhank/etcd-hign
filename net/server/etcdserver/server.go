@@ -3,6 +3,8 @@ package etcdserver
 import (
 	"net/http"
 
+	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+
 	"go.uber.org/zap"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
@@ -51,6 +53,8 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 	//启动node
 	id, n = startNode(cfg, cl)
 
+	lstats := stats.NewLeaderStats(cfg.Logger, id.String())
+
 	srv = &EtcdServer{
 		lg:     cfg.Logger,
 		errorc: make(chan error, 1),
@@ -60,9 +64,10 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 	}
 	// TODO: move transport initialization near the definition of remote
 	tr := &rafthttp.Transport{
-		Logger:  cfg.Logger,
-		TLSInfo: cfg.PeerTLSInfo,
-		ID:      id,
+		Logger:      cfg.Logger,
+		TLSInfo:     cfg.PeerTLSInfo,
+		ID:          id,
+		LeaderStats: lstats,
 	}
 	//启动etcd核心网络传输组件
 	if err = tr.Start(); err != nil {
