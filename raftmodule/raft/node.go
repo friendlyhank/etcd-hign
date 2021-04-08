@@ -39,6 +39,9 @@ func StartNode(c *Config) Node {
 	if err != nil {
 		panic(err)
 	}
+
+	rn.Bootstrap()
+
 	n := newNode(rn)
 
 	//这里会去发送消息

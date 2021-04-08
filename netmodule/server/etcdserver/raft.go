@@ -69,7 +69,8 @@ func startNode(cfg ServerConfig, cl *membership.RaftCluster) (id types.ID, n raf
 
 	//raft配置相关
 	c := &raft.Config{
-		ID: uint64(id),
+		ID:      uint64(id),
+		PreVote: cfg.PreVote,
 	}
 
 	n = raft.StartNode(c)

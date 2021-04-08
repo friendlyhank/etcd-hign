@@ -54,6 +54,13 @@ type Config struct {
 	InitialCluster      string `json:"initial-cluster"`
 	InitialClusterToken string `json:"initial-cluster-token"`
 
+	// PreVote is true to enable Raft Pre-Vote.
+	// If enabled, Raft runs an additional election phase
+	// to check whether it would get enough votes to win
+	// an election, thus minimizing disruptions.
+	// TODO: enable by default in 3.5.
+	PreVote bool `json:"pre-vote"`
+
 	// Logger is logger options: currently only supports "zap".
 	// "capnslog" is removed in v3.5.
 	Logger string `json:"logger"`
@@ -77,6 +84,8 @@ func NewConfig() *Config {
 		LCUrls: []url.URL{*lcurl},
 
 		InitialClusterToken: "etcd-cluster",
+
+		PreVote: false, // TODO: enable by default in v3.5
 
 		loggerMu: new(sync.RWMutex),
 		logger:   nil,

@@ -94,6 +94,7 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 		InitialPeerURLsMap:  urlsmap,
 		InitialClusterToken: token,
 		TickMs:              cfg.TickMs,
+		PreVote:             cfg.PreVote,
 	}
 
 	//这里注意做的事情特别多

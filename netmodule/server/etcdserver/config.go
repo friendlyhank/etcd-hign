@@ -16,6 +16,9 @@ type ServerConfig struct {
 	TickMs        uint
 	ElectionTicks int
 
+	// PreVote is true to enable Raft Pre-Vote.
+	PreVote bool
+
 	// Logger logs server-side operations.
 	// If not nil, it disables "capnslog" and uses the given logger.
 	Logger *zap.Logger
