@@ -44,7 +44,7 @@ enum MessageType {
 	MsgSnap            = 7;
 	MsgHeartbeat       = 8;
 	MsgHeartbeatResp   = 9;
-	MsgUnreachable     = 10;
+	MsgUnreachable     = 10;//网络原因导致不可用
 	MsgSnapStatus      = 11;
 	MsgCheckQuorum     = 12;
 	MsgTransferLeader  = 13;

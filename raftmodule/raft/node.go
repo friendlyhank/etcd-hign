@@ -1,6 +1,8 @@
 package raft
 
 import (
+	"context"
+
 	pb "github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 
@@ -22,12 +24,19 @@ type Node interface {
 	//用于定时选举
 	Tick()
 
+	// Step advances the state machine using the given message. ctx.Err() will be returned, if any.
+	Step(ctx context.Context, msg pb.Message) error
+
 	// Ready returns a channel that returns the current point-in-time state.
 	// Users of the Node must call Advance after retrieving the state returned by Ready.
 	//
 	// NOTE: No committed entries from the next Ready may be applied until all committed entries
 	// and snapshots from the previous one have finished.
 	Ready() <-chan Ready //准备就绪可发送消息
+
+	// ReportUnreachable reports the given node is not reachable for the last send.
+	//报告网络服务的不可用
+	ReportUnreachable(id uint64)
 }
 
 type Peer struct {
@@ -52,8 +61,9 @@ func StartNode(c *Config) Node {
 // node is the canonical implementation of the Node interface
 //节点信息,这个作为ectd的重要点
 type node struct {
-	readyc chan Ready
-	tickc  chan struct{}
+	recvc  chan pb.Message //接收消息
+	readyc chan Ready      //发送消息就绪状态
+	tickc  chan struct{}   //竞选领导者的定时
 	rn     *RawNode
 }
 
@@ -103,3 +113,9 @@ func newReady(r *raft) Ready {
 }
 
 func (n *node) Ready() <-chan Ready { return n.readyc }
+
+func (n *node) ReportUnreachable(id uint64) {
+	select {
+	case n.recvc <- pb.Message{Type: pb.MsgUnreachable, From: id}:
+	}
+}

@@ -21,10 +21,11 @@ import (
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 
+//网络层与raft层交互的接口
 type Raft interface {
 	Process(ctx context.Context, m raftpb.Message) error
 	IsIDRemoved(id uint64) bool
-	ReportUnreachable(id uint64)
+	ReportUnreachable(id uint64) //用于报告网络的不可用
 	ReportSnapshot(id uint64, status raft.SnapshotStatus)
 }
 
