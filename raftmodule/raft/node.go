@@ -6,6 +6,12 @@ import (
 
 type SnapshotStatus int
 
+// Ready encapsulates the entries and messages that are ready to read,
+// be saved to stable storage, committed or sent to other peers.
+// All fields in Ready are read-only.
+//Ready用于发送条目和消息
+//会被存储在stable storage中,提交或者发送给其他peers
+//Ready的所有字段都是只读的
 type Ready struct {
 	Messages []pb.Message
 }
@@ -20,6 +26,7 @@ type node struct {
 	rn *RawNode
 }
 
+//启动node
 func StartNode() Node {
 	rn, err := NewRawNode()
 	if err != nil {
@@ -27,8 +34,7 @@ func StartNode() Node {
 	}
 	n := newNode(rn)
 
-	//启动node
-	//Ready在这里
+	//这里会去发送消息
 	go n.run()
 	return &n
 }
@@ -44,7 +50,7 @@ func (n *node) run() {
 	var readyc chan Ready
 	var rd Ready
 	for {
-		//从这里去写入消息到channel,然后channel接收端会b不断循环发送消息
+		//从这里去写入消息到channel,然后channel接收端会不断循环发送消息
 		rd = n.rn.readyWithoutAccept()
 		readyc = n.readyc
 

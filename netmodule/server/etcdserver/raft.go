@@ -23,6 +23,7 @@ func newRaftNode(cfg raftNodeConfig) *raftNode {
 	return r
 }
 
+//raft调用transport去发送消息
 func (r *raftNode) start(rh *raftReadyHandler) {
 	go func() {
 		for {

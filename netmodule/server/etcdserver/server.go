@@ -50,9 +50,11 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 
 	//根据urlmap设置集群信息和member信息
 	cl, err = membership.NewClusterFromURLsMap(nil, cfg.InitialClusterToken, cfg.InitialPeerURLsMap)
+
 	//启动node
 	id, n = startNode(cfg, cl)
 
+	//初始化领导者统计相关信息
 	lstats := stats.NewLeaderStats(cfg.Logger, id.String())
 
 	srv = &EtcdServer{
@@ -62,6 +64,7 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 			Node: n, //这货隐藏的比较深
 		}),
 	}
+
 	// TODO: move transport initialization near the definition of remote
 	tr := &rafthttp.Transport{
 		Logger:      cfg.Logger,
