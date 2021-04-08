@@ -388,7 +388,7 @@ func (info TLSInfo) baseConfig() (*tls.Config, error) {
 }
 
 // IsClosedConnError returns true if the error is from closing listener, cmux.
-// copied from golang.org/x/net/http2/http2.go
+// copied from golang.org/x/netmodule/http2/http2.go
 func IsClosedConnError(err error) bool {
 	// 'use of closed network connection' (Go <=1.8)
 	// 'use of closed file or network connection' (Go >1.8, internal/poll.ErrClosing)

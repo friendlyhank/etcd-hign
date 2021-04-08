@@ -13,5 +13,5 @@
 // limitations under the License.
 
 // Package transport implements various HTTP transport utilities based on Go
-// net package.
+// netmodule package.
 package transport

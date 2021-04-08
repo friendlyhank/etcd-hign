@@ -1,1 +1,0 @@
-1.这里的balancer和resolver为grpc的负载均衡和容灾，对服务发现和服务注册有参考意义

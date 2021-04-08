@@ -18,7 +18,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var plog = capnslog.NewPackageLogger("github.com/friendlyhank/etcd-hign/net", "embed")
+var plog = capnslog.NewPackageLogger("github.com/friendlyhank/etcd-hign/netmodule", "embed")
 
 const (
 	// internal fd usage includes disk usage and transport usage.
@@ -285,7 +285,7 @@ func configureClientListeners(cfg *Config) (sctxs map[string]*serveCtx, err erro
 		if sctx.l, err = net.Listen(network, addr); err != nil {
 			return nil, err
 		}
-		// net.Listener will rewrite ipv4 0.0.0.0 to ipv6 [::], breaking
+		// netmodule.Listener will rewrite ipv4 0.0.0.0 to ipv6 [::], breaking
 		// hosts that disable ipv6. So, use the address given by the user.
 		sctx.addr = addr
 
