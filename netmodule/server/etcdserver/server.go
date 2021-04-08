@@ -2,6 +2,7 @@ package etcdserver
 
 import (
 	"net/http"
+	"time"
 
 	stats "github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/v2stats"
 
@@ -57,11 +58,13 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 	//初始化领导者统计相关信息
 	lstats := stats.NewLeaderStats(cfg.Logger, id.String())
 
+	heartbeat := time.Duration(cfg.TickMs) * time.Millisecond
 	srv = &EtcdServer{
 		lg:     cfg.Logger,
 		errorc: make(chan error, 1),
 		r: *newRaftNode(raftNodeConfig{
-			Node: n, //这货隐藏的比较深
+			Node:      n, //这货隐藏的比较深
+			heartbeat: heartbeat,
 		}),
 	}
 

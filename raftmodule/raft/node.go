@@ -17,17 +17,24 @@ type Ready struct {
 }
 
 type Node interface {
-	Ready() <-chan Ready
+	// Tick increments the internal logical clock for the Node by a single tick. Election
+	// timeouts and heartbeat timeouts are in units of ticks.
+	//用于定时选举
+	Tick()
+
+	// Ready returns a channel that returns the current point-in-time state.
+	// Users of the Node must call Advance after retrieving the state returned by Ready.
+	//
+	// NOTE: No committed entries from the next Ready may be applied until all committed entries
+	// and snapshots from the previous one have finished.
+	Ready() <-chan Ready //准备就绪可发送消息
 }
 
-type node struct {
-	readyc chan Ready
-
-	rn *RawNode
+type Peer struct {
 }
 
 //启动node
-func StartNode() Node {
+func StartNode(c *Config) Node {
 	rn, err := NewRawNode()
 	if err != nil {
 		panic(err)
@@ -39,10 +46,22 @@ func StartNode() Node {
 	return &n
 }
 
+// node is the canonical implementation of the Node interface
+//节点信息,这个作为ectd的重要点
+type node struct {
+	readyc chan Ready
+	tickc  chan struct{}
+	rn     *RawNode
+}
+
 func newNode(rn *RawNode) node {
 	return node{
 		readyc: make(chan Ready),
-		rn:     rn,
+		// make tickc a buffered chan, so raft node can buffer some ticks when the node
+		// is busy processing raft messages. Raft node will resume process buffered
+		// ticks when it becomes idle.
+		tickc: make(chan struct{}, 128),
+		rn:    rn,
 	}
 }
 
@@ -55,8 +74,20 @@ func (n *node) run() {
 		readyc = n.readyc
 
 		select {
+		case <-n.tickc:
+			n.rn.Tick()
 		case readyc <- rd:
 		}
+	}
+}
+
+// Tick increments the internal logical clock for this Node. Election timeouts
+// and heartbeat timeouts are in units of ticks.
+//启动节点的定时选举
+func (n *node) Tick() {
+	select {
+	case n.tickc <- struct{}{}:
+	default:
 	}
 }
 

@@ -34,6 +34,12 @@ type Config struct {
 	Dir    string `json:"data-dir"` //数据目录的路径
 	WalDir string `json:"wal-dir"`  //WAL文件专用目录
 
+	// TickMs is the number of milliseconds between heartbeat ticks.
+	// TODO: decouple tickMs and heartbeat tick (current heartbeat tick = 1).
+	// make ticks a cluster wide configuration.
+	TickMs     uint `json:"heartbeat-interval"` //选举定时心跳
+	ElectionMs uint `json:"election-timeout"`   //选举超时
+
 	LPUrls, LCUrls []url.URL
 	ClientTLSInfo  transport.TLSInfo
 	ClientAutoTLS  bool //是否自动生成Client TLS
@@ -62,17 +68,22 @@ func NewConfig() *Config {
 	lpurl, _ := url.Parse(DefaultListenPeerURLs)
 	lcurl, _ := url.Parse(DefaultListenClientURLs)
 	cfg := &Config{
-		Name:                DefaultName,
-		LPUrls:              []url.URL{*lpurl},
-		LCUrls:              []url.URL{*lcurl},
-		InitialCluster:      "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384",
-		InitialClusterToken: "etcd-cluster-1",
+		Name: DefaultName,
+
+		TickMs:     100,  //选举定时时间
+		ElectionMs: 1000, //选举超时时间
+
+		LPUrls: []url.URL{*lpurl},
+		LCUrls: []url.URL{*lcurl},
+
+		InitialClusterToken: "etcd-cluster",
 
 		loggerMu: new(sync.RWMutex),
 		logger:   nil,
 		Logger:   "zap",
 		LogLevel: logutil.DefaultLogLevel,
 	}
+	cfg.InitialCluster = "infra0=http://127.0.0.1:2380,infra1=http://127.0.0.1:2382,infra2=http://127.0.0.1:2384"
 	//Hank diff
 	cfg.logger, _ = zap.NewProduction()
 	return cfg

@@ -7,10 +7,14 @@ import (
 )
 
 type ServerConfig struct {
-	Name                string
+	Name string
+
 	InitialPeerURLsMap  types.URLsMap
 	InitialClusterToken string
 	PeerTLSInfo         transport.TLSInfo
+
+	TickMs        uint
+	ElectionTicks int
 
 	// Logger logs server-side operations.
 	// If not nil, it disables "capnslog" and uses the given logger.
