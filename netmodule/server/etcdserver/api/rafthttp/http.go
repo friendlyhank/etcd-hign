@@ -9,7 +9,7 @@ import (
 
 	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
 
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
 	pioutil "github.com/friendlyhank/etcd-hign/net/pkg/ioutil"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
@@ -203,7 +203,7 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wto := h.id.String()
-	if gto := r.Header.Get("X-Raft-To");gto != wto{
+	if gto := r.Header.Get("X-Raft-To"); gto != wto {
 		h.lg.Warn(
 			"ignored streaming request; ID mismatch",
 			zap.String("local-member-id", h.tr.ID.String()),

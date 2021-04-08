@@ -18,8 +18,8 @@ import (
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/pbutil"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 
 //测试pipelineHandler

@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
 	"go.uber.org/zap"
 

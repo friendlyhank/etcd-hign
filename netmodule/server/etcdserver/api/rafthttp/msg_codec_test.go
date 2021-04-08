@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 
 func TestMessage(t *testing.T) {

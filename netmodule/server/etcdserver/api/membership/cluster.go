@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/friendlyhank/etcd-hign/net/raft"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"go.uber.org/zap"

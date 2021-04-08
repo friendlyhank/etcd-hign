@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/friendlyhank/etcd-hign/net/pkg/testutil"
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
 	"net/http"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/net/pkg/testutil"
+	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
+
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"

@@ -2,7 +2,7 @@ package rafthttp
 
 import (
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 	"go.uber.org/zap"
 )
 

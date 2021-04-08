@@ -8,7 +8,7 @@ import (
 
 	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
 
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
 	"go.uber.org/zap"
 

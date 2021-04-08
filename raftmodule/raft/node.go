@@ -1,7 +1,7 @@
 package raft
 
 import (
-	pb "github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	pb "github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 
 type SnapshotStatus int

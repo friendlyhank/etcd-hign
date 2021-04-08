@@ -3,7 +3,7 @@ package rafthttp
 import (
 	"testing"
 
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 
 // TestPeerPick -测试发送通道选择器

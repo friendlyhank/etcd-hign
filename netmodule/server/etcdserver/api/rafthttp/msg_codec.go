@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/pbutil"
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 
 // messageEncoder is a encoder that can encode all kinds of messages.

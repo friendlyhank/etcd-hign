@@ -9,8 +9,8 @@ import (
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/pbutil"
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
 	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 	"go.uber.org/zap"
 )
 

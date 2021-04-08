@@ -1,6 +1,6 @@
 package rafthttp
 
-import "github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+import "github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
 type encoder interface {
 	// encode encodes the given message to an output stream.

@@ -8,7 +8,7 @@ import (
 
 	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
 
-	"github.com/friendlyhank/etcd-hign/net/raft"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft"
 
 	"golang.org/x/time/rate"
 
@@ -18,7 +18,7 @@ import (
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 
 type Raft interface {

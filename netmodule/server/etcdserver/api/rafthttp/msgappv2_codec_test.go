@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 
 func TestMsgAppV2(t *testing.T) {

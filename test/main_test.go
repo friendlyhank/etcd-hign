@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/friendlyhank/etcd-hign/net/server/etcdmain"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdmain"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/transport"
 )
 
 //生成https签名校验

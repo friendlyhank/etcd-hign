@@ -16,7 +16,7 @@ import (
 	"github.com/coreos/go-semver/semver"
 	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
 
-	"github.com/friendlyhank/etcd-hign/net/raft/raftpb"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
 	"go.uber.org/zap"

@@ -2,9 +2,9 @@ package etcdserver
 
 import (
 	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-	"github.com/friendlyhank/etcd-hign/net/raft"
 	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/membership"
 	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/rafthttp"
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft"
 )
 
 type raftNode struct {
