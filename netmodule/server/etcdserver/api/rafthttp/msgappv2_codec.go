@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/pbutil"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/pbutil"
 
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 )
 
 const (

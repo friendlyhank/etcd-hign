@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/logutil"
-	"github.com/friendlyhank/etcd-hign/net/pkg/tlsutil"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/logutil"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/tlsutil"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/transport"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 	"go.uber.org/zap"
 )
 

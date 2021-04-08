@@ -9,16 +9,16 @@ import (
 	"sync"
 	"time"
 
-	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+	stats "github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/v2stats"
 
 	"golang.org/x/time/rate"
 
 	"github.com/coreos/go-semver/semver"
-	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/transport"
 
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 	"go.uber.org/zap"
 )
 

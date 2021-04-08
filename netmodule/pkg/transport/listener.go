@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/tlsutil"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/tlsutil"
 
 	"go.uber.org/zap"
 )

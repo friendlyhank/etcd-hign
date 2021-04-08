@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	runtimeutil "github.com/friendlyhank/etcd-hign/net/pkg/runtime"
-	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver"
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/etcdhttp"
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/rafthttp"
+	runtimeutil "github.com/friendlyhank/etcd-hign/netmodule/pkg/runtime"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/transport"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/etcdhttp"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/rafthttp"
 	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
 )

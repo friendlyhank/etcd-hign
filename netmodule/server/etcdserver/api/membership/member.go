@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 )
 
 // RaftAttributes represents the raft related attributes of an etcd member.

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )

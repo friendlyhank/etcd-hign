@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/snap"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/snap"
 
 	"go.uber.org/zap"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/pbutil"
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/pbutil"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/version"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 

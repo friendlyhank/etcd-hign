@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/testutil"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/testutil"
 )
 
 // TestURLPickerPickTwice tests that pick returns a possible url,

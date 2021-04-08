@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/pbutil"
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/pbutil"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
+	stats "github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/v2stats"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 	"go.uber.org/zap"
 )

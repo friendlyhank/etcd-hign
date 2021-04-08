@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 )
 
 type urlPicker struct {

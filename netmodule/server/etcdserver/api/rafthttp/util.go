@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/version"
 
 	"github.com/coreos/go-semver/semver"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/transport"
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/transport"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 )
 
 var (

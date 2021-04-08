@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+	stats "github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/v2stats"
 
 	"golang.org/x/time/rate"
 
@@ -13,7 +13,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 )
 
 const (

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/pbutil"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/pbutil"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 

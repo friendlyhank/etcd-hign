@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 )
 

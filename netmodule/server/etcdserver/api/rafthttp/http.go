@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/version"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/version"
 
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
-	pioutil "github.com/friendlyhank/etcd-hign/net/pkg/ioutil"
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
+	pioutil "github.com/friendlyhank/etcd-hign/netmodule/pkg/ioutil"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
 	"go.uber.org/zap"
 )
 

@@ -3,16 +3,16 @@ package etcdserver
 import (
 	"net/http"
 
-	stats "github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/v2stats"
+	stats "github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/v2stats"
 
 	"go.uber.org/zap"
 
-	"github.com/friendlyhank/etcd-hign/net/pkg/types"
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/membership"
+	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/membership"
 
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft"
 
-	"github.com/friendlyhank/etcd-hign/net/server/etcdserver/api/rafthttp"
+	"github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/rafthttp"
 )
 
 type ServerPeer interface {
