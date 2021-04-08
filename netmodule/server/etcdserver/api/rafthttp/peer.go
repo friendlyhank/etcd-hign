@@ -212,6 +212,7 @@ func (p *peer) send(m raftpb.Message) {
 	select {
 	case writec <- m:
 	default:
+		p.r.ReportUnreachable(m.To)
 		if p.status.isActive() {
 			if p.lg != nil {
 				p.lg.Warn(
