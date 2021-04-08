@@ -1,8 +1,11 @@
 package etcdserver
 
 import (
+	"context"
 	"net/http"
 	"time"
+
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 
 	stats "github.com/friendlyhank/etcd-hign/netmodule/server/etcdserver/api/v2stats"
 
@@ -73,6 +76,7 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 		Logger:      cfg.Logger,
 		TLSInfo:     cfg.PeerTLSInfo,
 		ID:          id,
+		Raft:        srv,
 		LeaderStats: lstats,
 	}
 	//启动etcd核心网络传输组件
@@ -117,3 +121,19 @@ func (s *EtcdServer) run() {
 
 //设置EtcdServer的三大Handler RaftHandler() LeaseHandler()
 func (s *EtcdServer) RaftHandler() http.Handler { return s.r.transport.Handler() }
+
+func (s *EtcdServer) Process(ctx context.Context, m raftpb.Message) error {
+	return nil
+}
+
+func (s *EtcdServer) IsIDRemoved(id uint64) bool {
+	return false
+}
+
+func (s *EtcdServer) ReportUnreachable(id uint64) { s.r.ReportUnreachable(id) }
+
+// ReportSnapshot reports snapshot sent status to the raft state machine,
+// and clears the used snapshot from the snapshot store.
+func (s *EtcdServer) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
+
+}
