@@ -93,6 +93,8 @@ func (n *node) run() {
 	var advancec chan struct{}
 	var rd Ready
 
+	r := n.rn.raft
+
 	for {
 		if advancec != nil {
 			readyc = nil
@@ -101,6 +103,11 @@ func (n *node) run() {
 			readyc = n.readyc
 		}
 		select {
+		case m := <-n.recvc: //接收消息
+			// filter out response message from unknown From.
+			if pr := r.prs.Progress[m.From]; pr != nil {
+				r.Step(m) //把接收到的消息交给raft处理
+			}
 		case <-n.tickc: //启动定时
 			n.rn.Tick()
 		case readyc <- rd: //如果有消息，写入到n.readyc
