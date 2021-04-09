@@ -84,6 +84,7 @@ func (p *pipeline) handle() {
 				if m.Type == raftpb.MsgApp && p.followerStats != nil {
 					p.followerStats.Fail()
 				}
+				p.raft.ReportUnreachable(m.To)
 				continue
 			}
 			p.status.activate()
