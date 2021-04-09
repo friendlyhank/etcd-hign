@@ -21,6 +21,11 @@ func (rn *RawNode) readyWithoutAccept() Ready {
 	return newReady(rn.raft)
 }
 
+//是否处在ready状态可以发送消息
 func (rn *RawNode) HasReady() bool {
+	r := rn.raft
+	if len(r.msgs) > 0 {
+		return true
+	}
 	return false
 }

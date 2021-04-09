@@ -68,15 +68,18 @@ func StartNode(c *Config, peers []Peer) Node {
 // node is the canonical implementation of the Node interface
 //节点信息,这个作为ectd的重要点
 type node struct {
-	recvc  chan pb.Message //接收消息
-	readyc chan Ready      //发送消息就绪状态
-	tickc  chan struct{}   //竞选领导者的定时
-	rn     *RawNode
+	recvc    chan pb.Message //接收消息
+	readyc   chan Ready      //发送消息就绪状态
+	advancec chan struct{}   //发送消息readyc开关控制器
+	tickc    chan struct{}   //竞选领导者的定时
+	rn       *RawNode
 }
 
 func newNode(rn *RawNode) node {
 	return node{
-		readyc: make(chan Ready),
+		recvc:    make(chan pb.Message),
+		readyc:   make(chan Ready),
+		advancec: make(chan struct{}),
 		// make tickc a buffered chan, so raft node can buffer some ticks when the node
 		// is busy processing raft messages. Raft node will resume process buffered
 		// ticks when it becomes idle.
@@ -87,16 +90,24 @@ func newNode(rn *RawNode) node {
 
 func (n *node) run() {
 	var readyc chan Ready
+	var advancec chan struct{}
 	var rd Ready
-	for {
-		//从这里去写入消息到channel,然后channel接收端会不断循环发送消息
-		rd = n.rn.readyWithoutAccept()
-		readyc = n.readyc
 
+	for {
+		if advancec != nil {
+			readyc = nil
+		} else if n.rn.HasReady() {
+			rd = n.rn.readyWithoutAccept()
+			readyc = n.readyc
+		}
 		select {
-		case <-n.tickc:
+		case <-n.tickc: //启动定时
 			n.rn.Tick()
-		case readyc <- rd:
+		case readyc <- rd: //如果有消息，写入到n.readyc
+			advancec = n.advancec
+		case <-advancec:
+			rd = Ready{}
+			advancec = nil
 		}
 	}
 }

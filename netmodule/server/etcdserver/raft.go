@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
+
 	"go.uber.org/zap"
 
 	"github.com/friendlyhank/etcd-hign/netmodule/pkg/types"
@@ -52,16 +54,36 @@ func (r *raftNode) tick() {
 //raft调用transport去发送消息
 func (r *raftNode) start(rh *raftReadyHandler) {
 	go func() {
+		islead := false
 		for {
 			select {
-			case <-r.ticker.C:
+			case <-r.ticker.C: //定时选举
 				r.tick()
-			case rd := <-r.Ready():
-				msg := rd.Messages
-				r.transport.Send(msg)
+			// the leader can write to its disk in parallel with replicating to the followers and them
+			// writing to their disks.
+			// For more details, check raft thesis 10.2.1
+			case rd := <-r.Ready(): //处在ready状态,然后发送消息
+				//如果是领导者
+				if islead {
+					r.transport.Send(r.processMessages(rd.Messages))
+				}
+
+				if !islead {
+					// finish processing incoming messages before we signal raftdone chan
+					msgs := r.processMessages(rd.Messages)
+
+					// gofail: var raftBeforeFollowerSend struct{}
+					r.transport.Send(msgs)
+				}
 			}
 		}
 	}()
+}
+
+func (r *raftNode) processMessages(ms []raftpb.Message) []raftpb.Message {
+	for i := len(ms) - 1; i >= 0; i-- {
+	}
+	return ms
 }
 
 func startNode(cfg ServerConfig, cl *membership.RaftCluster, ids []types.ID) (id types.ID, n raft.Node) {
