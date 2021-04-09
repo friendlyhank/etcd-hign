@@ -1,6 +1,7 @@
 package confchange
 
 import (
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/quorum"
 	pb "github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/tracker"
 )
@@ -29,7 +30,7 @@ func (c Changer) Simple(ccs ...pb.ConfChangeSingle) (tracker.Config, tracker.Pro
 	}
 
 	//申请修改配置设置
-	if err := c.apply(nil, prs, ccs...); err != nil {
+	if err := c.apply(&cfg, prs, ccs...); err != nil {
 	}
 	return cfg, prs, nil
 }
@@ -60,6 +61,9 @@ func (c Changer) makeVoter(cfg *tracker.Config, prs tracker.ProgressMap, id uint
 
 // initProgress initializes a new progress for the given node or learner.
 func (c Changer) initProgress(cfg *tracker.Config, prs tracker.ProgressMap, id uint64, isLearner bool) {
+
+	incoming(cfg.Voters)[id] = struct{}{}
+
 	prs[id] = &tracker.Progress{}
 }
 
@@ -67,6 +71,7 @@ func (c Changer) initProgress(cfg *tracker.Config, prs tracker.ProgressMap, id u
 // the purposes of the Changer) and returns those copies. It returns an error
 // if checkInvariants does.
 func (c Changer) checkAndCopy() (tracker.Config, tracker.ProgressMap, error) {
+	cfg := c.Tracker.Config.Clone()
 	prs := tracker.ProgressMap{}
 	//把配置信息先复制一份新的
 	for id, pr := range c.Tracker.Progress {
@@ -74,5 +79,7 @@ func (c Changer) checkAndCopy() (tracker.Config, tracker.ProgressMap, error) {
 		ppr := *pr
 		prs[id] = &ppr
 	}
-	return tracker.Config{}, prs, nil
+	return cfg, prs, nil
 }
+
+func incoming(voters quorum.JointConfig) quorum.MajorityConfig { return voters[0] }

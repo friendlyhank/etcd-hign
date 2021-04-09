@@ -1,7 +1,7 @@
 package raft
 
 import (
-	"fmt"
+	"sort"
 
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/confchange"
 
@@ -98,6 +98,12 @@ func newRaft(c *Config) *raft {
 		prs:    tracker.MakeProgressTracker(0),
 	}
 	return r
+}
+
+// send persists state to stable storage and then sends to its mailbox.
+//准备要发送的消息体
+func (r *raft) send(m pb.Message) {
+	r.msgs = append(r.msgs, m)
 }
 
 // maybeCommit attempts to advance the commit index. Returns true if
@@ -213,14 +219,31 @@ func (r *raft) campaign(t CampaignType) {
 
 	var ids []uint64
 	{
-		fmt.Println(ids)
+		idMap := r.prs.Voters.IDs()
+		ids = make([]uint64, 0, len(idMap))
+		for id := range idMap {
+			ids = append(ids, id)
+		}
+		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	}
-	fmt.Println(term)
-	fmt.Println(voteMsg)
+	//向各个节点发送投票请求
+	for _, id := range ids {
+		if id == r.id {
+			continue
+		}
+		r.send(pb.Message{Term: term, To: id, Type: voteMsg})
+	}
 }
 
 //接收投票统计
 func (r *raft) poll(id uint64, t pb.MessageType, v bool) (granted int, rejected int, result quorum.VoteResult) {
+	if v {
+		r.logger.Infof("%x received %s from %x at term %d", r.id, t, id, r.Term)
+	} else {
+		r.logger.Infof("%x received %s rejection from %x at term %d", r.id, t, id, r.Term)
+	}
+	//记录票数
+	r.prs.RecordVote(id, v)
 	return
 }
 

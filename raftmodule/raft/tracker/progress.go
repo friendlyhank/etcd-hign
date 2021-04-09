@@ -9,3 +9,6 @@ package tracker
 // certain State. All of this isn't ideal.
 type Progress struct {
 }
+
+// ProgressMap is a map of *Progress.
+type ProgressMap map[uint64]*Progress
