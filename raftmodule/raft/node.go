@@ -40,6 +40,8 @@ type Node interface {
 }
 
 type Peer struct {
+	ID      uint64 //节点信息
+	Context []byte
 }
 
 //启动node

@@ -56,7 +56,7 @@ func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
 	cl, err = membership.NewClusterFromURLsMap(nil, cfg.InitialClusterToken, cfg.InitialPeerURLsMap)
 
 	//启动node
-	id, n = startNode(cfg, cl)
+	id, n = startNode(cfg, cl, cl.MemberIDs())
 
 	//初始化领导者统计相关信息
 	lstats := stats.NewLeaderStats(cfg.Logger, id.String())

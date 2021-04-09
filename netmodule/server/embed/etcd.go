@@ -93,8 +93,9 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 		Name:                cfg.Name,
 		InitialPeerURLsMap:  urlsmap,
 		InitialClusterToken: token,
-		TickMs:              cfg.TickMs,
-		PreVote:             cfg.PreVote,
+		TickMs:              cfg.TickMs,  //设置竞选领导者定时
+		PreVote:             cfg.PreVote, //是否开启预候选者
+		Logger:              cfg.logger,
 	}
 
 	//这里注意做的事情特别多

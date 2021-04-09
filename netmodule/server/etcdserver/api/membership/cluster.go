@@ -12,6 +12,10 @@ import (
 )
 
 type RaftCluster struct {
+	lg *zap.Logger
+
+	cid types.ID //集群id
+
 	sync.Mutex // guards the fields below
 	members    map[types.ID]*Member
 }
@@ -37,6 +41,8 @@ func NewCluster() *RaftCluster {
 	}
 }
 
+func (c *RaftCluster) ID() types.ID { return c.cid }
+
 func (c *RaftCluster) Members() []*Member {
 	c.Lock()
 	defer c.Unlock()
@@ -46,6 +52,12 @@ func (c *RaftCluster) Members() []*Member {
 	}
 	sort.Sort(ms)
 	return []*Member(ms)
+}
+
+func (c *RaftCluster) Member(id types.ID) *Member {
+	c.Lock()
+	defer c.Unlock()
+	return c.members[id].Clone()
 }
 
 func (c *RaftCluster) MemberByName(name string) *Member {
@@ -61,6 +73,17 @@ func (c *RaftCluster) MemberByName(name string) *Member {
 		}
 	}
 	return memb.Clone()
+}
+
+func (c *RaftCluster) MemberIDs() []types.ID {
+	c.Lock()
+	defer c.Unlock()
+	var ids []types.ID
+	for _, m := range c.members {
+		ids = append(ids, m.ID)
+	}
+	sort.Sort(types.IDSlice(ids))
+	return ids
 }
 
 func (m *Member) Clone() *Member {

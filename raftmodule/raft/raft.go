@@ -93,6 +93,7 @@ func newRaft(c *Config) *raft {
 	}
 	r := &raft{
 		logger: c.Logger,
+		prs:    tracker.MakeProgressTracker(0),
 	}
 	return r
 }
@@ -194,7 +195,24 @@ func (r *raft) campaign(t CampaignType) {
 		voteMsg = pb.MsgVote //准备发送投票消息
 		term = r.Term
 	}
+	//给自己投一票
+	if _, _, res := r.poll(r.id, voteRespMsgType(voteMsg), true); res == quorum.VoteWon {
+		//每个节点投票的时间不一样,所以在有可能别的节点已经投票自己再投一票就胜出的情况
+		// We won the election after voting for ourselves (which must mean that
+		// this is a single-node cluster). Advance to the next state.
+		//预候选人成为候选人
+		if t == campaignPreElection {
+			r.campaign(campaignElection)
+		} else {
+			r.becomeLeader() //成为领导者
+		}
+		return
+	}
 
+	var ids []uint64
+	{
+		fmt.Println(ids)
+	}
 	fmt.Println(term)
 	fmt.Println(voteMsg)
 }

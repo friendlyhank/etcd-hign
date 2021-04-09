@@ -15,5 +15,15 @@ type ProgressTracker struct {
 	Votes map[uint64]bool
 }
 
+// MakeProgressTracker initializes a ProgressTracker.
+func MakeProgressTracker(maxInflight int) ProgressTracker {
+	p := ProgressTracker{
+		Config:   Config{},
+		Votes:    map[uint64]bool{},
+		Progress: map[uint64]*Progress{},
+	}
+	return p
+}
+
 // ProgressMap is a map of *Progress.
 type ProgressMap map[uint64]*Progress

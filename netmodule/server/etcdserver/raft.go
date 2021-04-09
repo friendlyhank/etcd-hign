@@ -1,6 +1,7 @@
 package etcdserver
 
 import (
+	"encoding/json"
 	"time"
 
 	"go.uber.org/zap"
@@ -63,9 +64,25 @@ func (r *raftNode) start(rh *raftReadyHandler) {
 	}()
 }
 
-func startNode(cfg ServerConfig, cl *membership.RaftCluster) (id types.ID, n raft.Node) {
+func startNode(cfg ServerConfig, cl *membership.RaftCluster, ids []types.ID) (id types.ID, n raft.Node) {
+	var err error
 	member := cl.MemberByName(cfg.Name)
+
+	peers := make([]raft.Peer, len(ids))
+	for i, id := range ids {
+		var ctx []byte
+		ctx, err = json.Marshal((*cl).Member(id))
+		if err != nil {
+			cfg.Logger.Panic("failed to marshal member", zap.Error(err))
+		}
+		peers[i] = raft.Peer{ID: uint64(id), Context: ctx}
+	}
 	id = member.ID
+	cfg.Logger.Info(
+		"starting local member",
+		zap.String("local-member-id", id.String()),
+		zap.String("cluster-id", cl.ID().String()),
+	)
 
 	//raft配置相关
 	c := &raft.Config{
