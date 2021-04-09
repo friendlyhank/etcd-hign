@@ -4,8 +4,8 @@ type RawNode struct {
 	raft *raft
 }
 
-func NewRawNode() (*RawNode, error) {
-	r := newRaft()
+func NewRawNode(config *Config) (*RawNode, error) {
+	r := newRaft(config)
 	rn := &RawNode{
 		raft: r,
 	}

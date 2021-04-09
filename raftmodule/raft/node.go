@@ -44,7 +44,7 @@ type Peer struct {
 
 //启动node
 func StartNode(c *Config) Node {
-	rn, err := NewRawNode()
+	rn, err := NewRawNode(c)
 	if err != nil {
 		panic(err)
 	}

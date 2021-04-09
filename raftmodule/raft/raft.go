@@ -1,6 +1,8 @@
 package raft
 
 import (
+	"fmt"
+
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/quorum"
 	pb "github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/tracker"
@@ -47,6 +49,17 @@ type Config struct {
 	// 9.6. This prevents disruption when a node that has been partitioned away
 	// rejoins the cluster.
 	PreVote bool
+
+	// Logger is the logger used for raft log. For multinode which can host
+	// multiple raft group, each raft group can have its own logger
+	Logger Logger
+}
+
+func (c *Config) validate() error {
+	if c.Logger == nil {
+		c.Logger = raftLogger
+	}
+	return nil
 }
 
 type raft struct {
@@ -74,8 +87,13 @@ type raft struct {
 	logger Logger
 }
 
-func newRaft() *raft {
-	r := &raft{}
+func newRaft(c *Config) *raft {
+	if err := c.validate(); err != nil {
+		panic(err.Error())
+	}
+	r := &raft{
+		logger: c.Logger,
+	}
 	return r
 }
 
@@ -176,6 +194,9 @@ func (r *raft) campaign(t CampaignType) {
 		voteMsg = pb.MsgVote //准备发送投票消息
 		term = r.Term
 	}
+
+	fmt.Println(term)
+	fmt.Println(voteMsg)
 }
 
 //接收投票统计
