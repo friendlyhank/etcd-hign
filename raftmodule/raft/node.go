@@ -104,6 +104,14 @@ func (n *node) Tick() {
 	}
 }
 
+func (n *node) Step(ctx context.Context, m pb.Message) error {
+	return n.step(ctx, m)
+}
+
+func (n *node) step(ctx context.Context, m pb.Message) error {
+	return nil
+}
+
 // newReady- 在这里去new Ready
 func newReady(r *raft) Ready {
 	rd := Ready{

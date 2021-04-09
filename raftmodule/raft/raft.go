@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/quorum"
 	pb "github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/tracker"
 )
@@ -106,6 +107,7 @@ func (r *raft) becomeFollower(term uint64, lead uint64) {
 	r.tick = r.tickElection
 	r.lead = lead
 	r.state = StateFollower
+	r.logger.Infof("%x became follower at term %d", r.id, r.Term)
 }
 
 //初始化成为候选人信息
@@ -119,6 +121,7 @@ func (r *raft) becomeCandidate() {
 	r.tick = r.tickElection
 	r.Vote = r.id
 	r.state = StateCandidate
+	r.logger.Infof("%x became candidate at term %d", r.id, r.Term)
 }
 
 //初始化成为预候选人信息
@@ -134,6 +137,7 @@ func (r *raft) becomePreCandidate() {
 	r.tick = r.tickElection
 	r.lead = None
 	r.state = StatePreCandidate
+	r.logger.Infof("%x became pre-candidate at term %d", r.id, r.Term)
 }
 
 //初始化成为领导者信息
@@ -147,6 +151,7 @@ func (r *raft) becomeLeader() {
 	r.tick = r.tickHeartbeat
 	r.lead = r.id
 	r.state = StateLeader
+	r.logger.Infof("%x became leader at term %d", r.id, r.Term)
 }
 
 //晋升为候选人或预候选人
@@ -161,11 +166,21 @@ func (r *raft) hup(t CampaignType) {
 // called after verifying that this is a legitimate transition.
 //晋升为候选人或预候选人
 func (r *raft) campaign(t CampaignType) {
+	var term uint64
+	var voteMsg pb.MessageType
 	if t == campaignPreElection {
 		r.becomePreCandidate()
+		voteMsg = pb.MsgPreVote //准备发送预选投票消息
 	} else {
 		r.becomeCandidate()
+		voteMsg = pb.MsgVote //准备发送投票消息
+		term = r.Term
 	}
+}
+
+//接收投票统计
+func (r *raft) poll(id uint64, t pb.MessageType, v bool) (granted int, rejected int, result quorum.VoteResult) {
+	return
 }
 
 //执行竞选的状态

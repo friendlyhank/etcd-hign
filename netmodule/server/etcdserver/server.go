@@ -123,7 +123,7 @@ func (s *EtcdServer) run() {
 func (s *EtcdServer) RaftHandler() http.Handler { return s.r.transport.Handler() }
 
 func (s *EtcdServer) Process(ctx context.Context, m raftpb.Message) error {
-	return nil
+	return s.r.Step(ctx, m)
 }
 
 func (s *EtcdServer) IsIDRemoved(id uint64) bool {
