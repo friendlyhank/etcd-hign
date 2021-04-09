@@ -3,6 +3,8 @@ package raft
 import (
 	"fmt"
 
+	"github.com/friendlyhank/etcd-hign/raftmodule/raft/confchange"
+
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/quorum"
 	pb "github.com/friendlyhank/etcd-hign/raftmodule/raft/raftpb"
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/tracker"
@@ -258,4 +260,33 @@ func stepCandidate(r *raft, m pb.Message) error {
 
 func stepFollower(r *raft, m pb.Message) error {
 	return nil
+}
+
+//申请修改配置信息
+func (r *raft) applyConfChange(cc pb.ConfChangeV2) pb.ConfState {
+	cfg, prs, err := func() (tracker.Config, tracker.ProgressMap, error) {
+		changer := confchange.Changer{
+			Tracker: r.prs,
+		}
+		return changer.Simple(cc.Changes...)
+	}()
+	if err != nil {
+		// TODO(tbg): return the error to the caller.
+		panic(err)
+	}
+	return r.switchToConfig(cfg, prs)
+}
+
+// switchToConfig reconfigures this node to use the provided configuration. It
+// updates the in-memory state and, when necessary, carries out additional
+// actions such as reacting to the removal of nodes or changed quorum
+// requirements.
+//
+// The inputs usually result from restoring a ConfState or applying a ConfChange.
+//让更改的raft配置信息并生效
+func (r *raft) switchToConfig(cfg tracker.Config, prs tracker.ProgressMap) pb.ConfState {
+	//复制新的配置信息
+	r.prs.Config = cfg
+	r.prs.Progress = prs
+	return pb.ConfState{}
 }

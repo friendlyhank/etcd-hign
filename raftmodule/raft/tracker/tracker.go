@@ -1,5 +1,7 @@
 package tracker
 
+//raft统计票数相关
+
 // Config reflects the configuration tracked in a ProgressTracker.
 type Config struct {
 }

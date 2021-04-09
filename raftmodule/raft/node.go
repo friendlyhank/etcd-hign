@@ -44,14 +44,19 @@ type Peer struct {
 	Context []byte
 }
 
+// StartNode returns a new Node given configuration and a list of raft peers.
+// It appends a ConfChangeAddNode entry for each given peer to the initial log.
+//
+// Peers must not be zero length; call RestartNode in that case.
 //启动node
-func StartNode(c *Config) Node {
+func StartNode(c *Config, peers []Peer) Node {
 	rn, err := NewRawNode(c)
 	if err != nil {
 		panic(err)
 	}
 
-	rn.Bootstrap()
+	//初始化成为跟随者信息同时初始化投票相关信息
+	rn.Bootstrap(peers)
 
 	n := newNode(rn)
 

@@ -1,5 +1,7 @@
 package quorum
 
+//投票结果相关
+
 // VoteResult indicates the outcome of a vote.
 //
 //go:generate stringer -type=VoteResult

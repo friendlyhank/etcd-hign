@@ -114,9 +114,9 @@ message ConfState {
 }
 
 enum ConfChangeType {
-	ConfChangeAddNode        = 0;
-	ConfChangeRemoveNode     = 1;
-	ConfChangeUpdateNode     = 2;
+	ConfChangeAddNode        = 0;//raft增加节点
+	ConfChangeRemoveNode     = 1;//raft移除节点
+	ConfChangeUpdateNode     = 2;//raft修改节点
 	ConfChangeAddLearnerNode = 3;
 }
 

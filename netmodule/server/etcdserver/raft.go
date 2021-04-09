@@ -90,6 +90,6 @@ func startNode(cfg ServerConfig, cl *membership.RaftCluster, ids []types.ID) (id
 		PreVote: cfg.PreVote,
 	}
 
-	n = raft.StartNode(c)
+	n = raft.StartNode(c, peers)
 	return id, n
 }
