@@ -82,5 +82,6 @@ func (p *ProgressTracker) TallyVotes() (granted int, rejected int, _ quorum.Vote
 			rejected++ //反对的票数
 		}
 	}
-	return granted, rejected, quorum.VotePending
+	result := p.Voters.VoteResult(p.Votes)
+	return granted, rejected, result
 }

@@ -240,7 +240,7 @@ func (r *raft) poll(id uint64, t pb.MessageType, v bool) (granted int, rejected 
 	}
 	//记录票数
 	r.prs.RecordVote(id, v)
-	return
+	return r.prs.TallyVotes()
 }
 
 //执行竞选的状态
