@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/confchange"
@@ -146,9 +145,6 @@ func (r *raft) becomeFollower(term uint64, lead uint64) {
 //初始化成为候选人信息
 func (r *raft) becomeCandidate() {
 	// TODO(xiangli) remove the panic when the raft implementation is stable
-	if r.state == StateLeader {
-		panic("invalid transition [leader -> candidate]")
-	}
 	r.step = stepCandidate
 	r.reset(r.Term + 1)
 	r.tick = r.tickElection
@@ -160,9 +156,6 @@ func (r *raft) becomeCandidate() {
 //初始化成为预候选人信息
 func (r *raft) becomePreCandidate() {
 	// TODO(xiangli) remove the panic when the raft implementation is stable
-	if r.state == StateLeader {
-		panic("invalid transition [leader -> pre-candidate]")
-	}
 	// Becoming a pre-candidate changes our step functions and state,
 	// but doesn't change anything else. In particular it does not increase
 	// r.Term or change r.Vote.
@@ -176,12 +169,9 @@ func (r *raft) becomePreCandidate() {
 //初始化成为领导者信息
 func (r *raft) becomeLeader() {
 	// TODO(xiangli) remove the panic when the raft implementation is stable
-	if r.state == StateFollower {
-		panic("invalid transition [follower -> leader]")
-	}
 	r.step = stepLeader
 	r.reset(r.Term)
-	r.tick = r.tickHeartbeat
+	r.tick = r.tickHeartbeat //发送心跳消息
 	r.lead = r.id
 	r.state = StateLeader
 	r.logger.Infof("%x became leader at term %d", r.id, r.Term)
@@ -264,7 +254,18 @@ func (r *raft) Step(m pb.Message) error {
 		}
 
 	case pb.MsgVote, pb.MsgPreVote:
-		fmt.Println("can vote")
+		// We can vote if this is a repeat of a vote we've already cast...
+
+		// When responding to Msg{Pre,}Vote messages we include the term
+		// from the message, not the local term. To see why, consider the
+		// case where a single node was previously partitioned away and
+		// it's local term is now out of date. If we include the local term
+		// (recall that for pre-votes we don't update the local term), the
+		// (pre-)campaigning node on the other end will proceed to ignore
+		// the message (it ignores all out of date messages).
+		// The term in the original message and current local term are the
+		// same in the case of regular votes, but different for pre-votes.
+		r.send(pb.Message{To: m.From, Term: m.Term, Type: voteRespMsgType(m.Type)})
 	default:
 		err := r.step(r, m)
 		if err != nil {
@@ -286,6 +287,30 @@ func stepCandidate(r *raft, m pb.Message) error {
 	// Only handle vote responses corresponding to our candidacy (while in
 	// StateCandidate, we may get stale MsgPreVoteResp messages in this term from
 	// our pre-candidate state).
+	var myVoteRespType pb.MessageType
+	if r.state == StatePreCandidate {
+		myVoteRespType = pb.MsgPreVoteResp
+	} else {
+		myVoteRespType = pb.MsgVoteResp
+	}
+	switch m.Type {
+	case myVoteRespType:
+		gr, rj, res := r.poll(m.From, m.Type, !m.Reject)
+		r.logger.Infof("%x has received %d %s votes and %d vote rejections", r.id, gr, m.Type, rj)
+		switch res {
+		case quorum.VoteWon:
+			if r.state == StatePreCandidate {
+				r.campaign(campaignElection)
+			} else {
+				r.becomeLeader()
+			}
+		case quorum.VoteLost:
+			//竞选失败，成为跟随者,如果没有产生领导者则会发起新一轮选举
+			// pb.MsgPreVoteResp contains future term of pre-candidate
+			// m.Term > r.Term; reuse r.Term
+			r.becomeFollower(r.Term, None)
+		}
+	}
 	return nil
 }
 
