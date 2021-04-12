@@ -47,6 +47,18 @@ type Config struct {
 	// ID is the identity of the local raft. ID cannot be 0.
 	ID uint64
 
+	// ElectionTick is the number of Node.Tick invocations that must pass between
+	// elections. That is, if a follower does not receive any message from the
+	// leader of current term before ElectionTick has elapsed, it will become
+	// candidate and start an election. ElectionTick must be greater than
+	// HeartbeatTick. We suggest ElectionTick = 10 * HeartbeatTick to avoid
+	// unnecessary leader switching.
+	ElectionTick int //TODO HANK 重点研究下
+	// HeartbeatTick is the number of Node.Tick invocations that must pass between
+	// heartbeats. That is, a leader sends heartbeat messages to maintain its
+	// leadership every HeartbeatTick ticks.
+	HeartbeatTick int //TODO HANK 重点研究下
+
 	// PreVote enables the Pre-Vote algorithm described in raft thesis section
 	// 9.6. This prevents disruption when a node that has been partitioned away
 	// rejoins the cluster.
@@ -83,6 +95,9 @@ type raft struct {
 
 	preVote bool //是否需要预候选人
 
+	electionTimeout  int //选举超时,如果超时会触发新一轮选举
+	heartbeatTimeout int //心跳超时
+
 	tick func()   //选举时候需要定时执行的方法
 	step stepFunc //竞选的下一个步骤
 
@@ -94,9 +109,11 @@ func newRaft(c *Config) *raft {
 		panic(err.Error())
 	}
 	r := &raft{
-		id:     c.ID,
-		logger: c.Logger,
-		prs:    tracker.MakeProgressTracker(0),
+		id:               c.ID,
+		logger:           c.Logger,
+		prs:              tracker.MakeProgressTracker(0),
+		electionTimeout:  c.ElectionTick,
+		heartbeatTimeout: c.HeartbeatTick,
 	}
 	return r
 }
@@ -240,7 +257,7 @@ func (r *raft) poll(id uint64, t pb.MessageType, v bool) (granted int, rejected 
 	}
 	//记录票数
 	r.prs.RecordVote(id, v)
-	return r.prs.TallyVotes()
+	return r.prs.TallyVotes() //计算投票结果
 }
 
 //执行竞选的状态
