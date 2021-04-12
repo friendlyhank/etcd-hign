@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/confchange"
@@ -94,6 +95,7 @@ func newRaft(c *Config) *raft {
 		panic(err.Error())
 	}
 	r := &raft{
+		id:     c.ID,
 		logger: c.Logger,
 		prs:    tracker.MakeProgressTracker(0),
 	}
@@ -103,6 +105,9 @@ func newRaft(c *Config) *raft {
 // send persists state to stable storage and then sends to its mailbox.
 //准备要发送的消息体
 func (r *raft) send(m pb.Message) {
+	if m.From == None {
+		m.From = r.id
+	}
 	r.msgs = append(r.msgs, m)
 }
 
@@ -257,6 +262,8 @@ func (r *raft) Step(m pb.Message) error {
 			r.hup(campaignElection)
 		}
 
+	case pb.MsgVote, pb.MsgPreVote:
+		fmt.Println("can vote")
 	default:
 		err := r.step(r, m)
 		if err != nil {
