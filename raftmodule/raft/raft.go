@@ -1,7 +1,10 @@
 package raft
 
 import (
+	"math/rand"
 	"sort"
+	"sync"
+	"time"
 
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/confchange"
 
@@ -32,6 +35,25 @@ const (
 	// of the election when Config.PreVote is true).
 	campaignElection CampaignType = "CampaignElection"
 )
+
+// lockedRand is a small wrapper around rand.Rand to provide
+// synchronization among multiple raft groups. Only the methods needed
+// by the code are exposed (e.g. Intn).
+type lockedRand struct {
+	mu   sync.Mutex
+	rand *rand.Rand
+}
+
+func (r *lockedRand) Intn(n int) int {
+	r.mu.Lock()
+	v := r.rand.Intn(n)
+	r.mu.Unlock()
+	return v
+}
+
+var globalRand = &lockedRand{
+	rand: rand.New(rand.NewSource(time.Now().UnixNano())),
+}
 
 // CampaignType represents the type of campaigning
 // the reason we use the type of string instead of uint64
@@ -93,10 +115,26 @@ type raft struct {
 	//领导者id
 	lead uint64
 
+	// number of ticks since it reached last electionTimeout when it is leader
+	// or candidate.
+	// number of ticks since it reached last electionTimeout or received a
+	// valid message from current leader when it is a follower.
+	electionElapsed int //选举时间摆钟,累加
+
+	// number of ticks since it reached last heartbeatTimeout.
+	// only leader keeps heartbeatElapsed.
+	heartbeatElapsed int //心跳时间摆钟,累加
+
 	preVote bool //是否需要预候选人
 
 	electionTimeout  int //选举超时,如果超时会触发新一轮选举
 	heartbeatTimeout int //心跳超时
+
+	// randomizedElectionTimeout is a random number between
+	// [electiontimeout, 2 * electiontimeout - 1]. It gets reset
+	// when raft changes its state to follower or candidate.
+	//带随机的选举超时,取值范围在[electiontimeout, 2 * electiontimeout - 1]
+	randomizedElectionTimeout int
 
 	tick func()   //选举时候需要定时执行的方法
 	step stepFunc //竞选的下一个步骤
@@ -136,11 +174,18 @@ func (r *raft) reset(term uint64) {
 		r.Term = term
 	}
 	r.lead = None
+	r.electionElapsed = 0  //选举时间摆钟变为0
+	r.heartbeatElapsed = 0 //心跳时间摆钟变为0
+	r.resetRandomizedElectionTimeout()
 }
 
 //定时选举
 func (r *raft) tickElection() {
-	r.Step(pb.Message{From: r.id, Type: pb.MsgHup})
+	r.electionElapsed++ //每次定时选举的时间摆钟加一
+	if r.pastElectionTimeout() {
+		r.electionElapsed = 0
+		r.Step(pb.Message{From: r.id, Type: pb.MsgHup})
+	}
 }
 
 // tickHeartbeat is run by leaders to send a MsgBeat after r.heartbeatTimeout.
@@ -359,4 +404,17 @@ func (r *raft) switchToConfig(cfg tracker.Config, prs tracker.ProgressMap) pb.Co
 	r.prs.Config = cfg
 	r.prs.Progress = prs
 	return pb.ConfState{}
+}
+
+// pastElectionTimeout returns true iff r.electionElapsed is greater
+// than or equal to the randomized election timeout in
+// [electiontimeout, 2 * electiontimeout - 1].
+//判断选举是否超时，超时会触发新一轮选举
+func (r *raft) pastElectionTimeout() bool {
+	return r.electionElapsed >= r.randomizedElectionTimeout
+}
+
+//生成一个随机的选举超时数
+func (r *raft) resetRandomizedElectionTimeout() {
+	r.randomizedElectionTimeout = r.electionTimeout + globalRand.Intn(r.electionTimeout)
 }
