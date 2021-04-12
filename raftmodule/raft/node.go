@@ -134,7 +134,16 @@ func (n *node) Step(ctx context.Context, m pb.Message) error {
 }
 
 func (n *node) step(ctx context.Context, m pb.Message) error {
-	return nil
+	return n.stepWithWaitOption(ctx, m, true)
+}
+
+// Step advances the state machine using msgs. The ctx.Err() will be returned,
+// if any.
+func (n *node) stepWithWaitOption(ctx context.Context, m pb.Message, wait bool) error {
+	select {
+	case n.recvc <- m:
+		return nil
+	}
 }
 
 // newReady- 在这里去new Ready
