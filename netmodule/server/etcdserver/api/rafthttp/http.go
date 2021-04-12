@@ -238,60 +238,6 @@ func (h *streamHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // the versions in the header, and whether the cluster ID of local member
 // matches the one in the header.
 func checkClusterCompatibilityFromHeader(lg *zap.Logger, localID types.ID, header http.Header, cid types.ID) error {
-	remoteName := header.Get("X-Server-From")
-
-	remoteServer := serverVersion(header)
-	remoteVs := ""
-	if remoteServer != nil {
-		remoteVs = remoteServer.String()
-	}
-
-	remoteMinClusterVer := minClusterVersion(header)
-	remoteMinClusterVs := ""
-	if remoteMinClusterVer != nil {
-		remoteMinClusterVs = remoteMinClusterVer.String()
-	}
-
-	localServer, localMinCluster, err := checkVersionCompatibility(remoteName, remoteServer, remoteMinClusterVer)
-
-	localVs := ""
-	if localServer != nil {
-		localVs = localServer.String()
-	}
-	localMinClusterVs := ""
-	if localMinCluster != nil {
-		localMinClusterVs = localMinCluster.String()
-	}
-
-	if err != nil {
-		lg.Warn(
-			"failed to check version compatibility",
-			zap.String("local-member-id", localID.String()),
-			zap.String("local-member-cluster-id", cid.String()),
-			zap.String("local-member-server-version", localVs),
-			zap.String("local-member-server-minimum-cluster-version", localMinClusterVs),
-			zap.String("remote-peer-server-name", remoteName),
-			zap.String("remote-peer-server-version", remoteVs),
-			zap.String("remote-peer-server-minimum-cluster-version", remoteMinClusterVs),
-			zap.Error(err),
-		)
-		return errIncompatibleVersion
-	}
-
-	if gcid := header.Get("X-Etcd-Cluster-ID"); gcid != cid.String() {
-		lg.Warn(
-			"request cluster ID mismatch",
-			zap.String("local-member-id", localID.String()),
-			zap.String("local-member-cluster-id", cid.String()),
-			zap.String("local-member-server-version", localVs),
-			zap.String("local-member-server-minimum-cluster-version", localMinClusterVs),
-			zap.String("remote-peer-server-name", remoteName),
-			zap.String("remote-peer-server-version", remoteVs),
-			zap.String("remote-peer-server-minimum-cluster-version", remoteMinClusterVs),
-			zap.String("remote-peer-cluster-id", gcid),
-		)
-		return errClusterIDMismatch
-	}
 	return nil
 }
 
