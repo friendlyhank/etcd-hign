@@ -75,6 +75,9 @@ func (r *raftNode) start(rh *raftReadyHandler) {
 					// gofail: var raftBeforeFollowerSend struct{}
 					r.transport.Send(msgs)
 				}
+
+				//通知发送下一批消息
+				r.Advance()
 			}
 		}
 	}()

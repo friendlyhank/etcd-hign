@@ -108,6 +108,7 @@ func (r *raft) send(m pb.Message) {
 	if m.From == None {
 		m.From = r.id
 	}
+	//生成消息和发送消息逻辑分开，使用append消息,一次可以发送多个消息体
 	r.msgs = append(r.msgs, m)
 }
 

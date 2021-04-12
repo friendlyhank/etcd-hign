@@ -34,6 +34,19 @@ type Node interface {
 	// and snapshots from the previous one have finished.
 	Ready() <-chan Ready //准备就绪可发送消息
 
+	// Advance notifies the Node that the application has saved progress up to the last Ready.
+	// It prepares the node to return the next available Ready.
+	//
+	// The application should generally call Advance after it applies the entries in last Ready.
+	//
+	// However, as an optimization, the application may call Advance while it is applying the
+	// commands. For example. when the last Ready contains a snapshot, the application might take
+	// a long time to apply the snapshot data. To continue receiving Ready without blocking raft
+	// progress, it can call Advance before finishing applying the last ready.
+	//发送消息控制器，保证上一批消息发送完成再发送下一批
+	//发送消息的过程Ready->Advance->send msg->Ready
+	Advance()
+
 	// ReportUnreachable reports the given node is not reachable for the last send.
 	//报告网络服务的不可用
 	ReportUnreachable(id uint64)
@@ -113,7 +126,7 @@ func (n *node) run() {
 		case readyc <- rd: //如果有消息，写入到n.readyc
 			n.rn.acceptReady(rd)
 			advancec = n.advancec
-		case <-advancec:
+		case <-advancec: //消息控制器，直到上一批消息发送完才会发送下一批
 			rd = Ready{}
 			advancec = nil
 		}
@@ -155,7 +168,15 @@ func newReady(r *raft) Ready {
 	return rd
 }
 
+//接收到ready状态可以发送消息
 func (n *node) Ready() <-chan Ready { return n.readyc }
+
+//消息发送完成,通知一下可以发送下一批消息
+func (n *node) Advance() {
+	select {
+	case n.advancec <- struct{}{}:
+	}
+}
 
 func (n *node) ReportUnreachable(id uint64) {
 	select {
