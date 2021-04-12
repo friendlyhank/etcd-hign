@@ -408,7 +408,7 @@ func (cr *streamReader) run() {
 			}
 		}
 		// Wait for a while before new dial attempt
-		err = cr.rl.Wait(cr.ctx)
+		err = cr.rl.Wait(cr.ctx) //失败拨号重试,控制频率
 		if cr.ctx.Err() != nil {
 			if cr.lg != nil {
 				cr.lg.Info(

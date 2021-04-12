@@ -111,6 +111,7 @@ func (n *node) run() {
 		case <-n.tickc: //启动定时
 			n.rn.Tick()
 		case readyc <- rd: //如果有消息，写入到n.readyc
+			n.rn.acceptReady(rd)
 			advancec = n.advancec
 		case <-advancec:
 			rd = Ready{}
