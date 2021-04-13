@@ -104,6 +104,9 @@ func (cfg *Config) PeerURLsMapAndToken(which string) (urlsmap types.URLsMap, tok
 	return urlsmap, token, err
 }
 
+//TODO HANK 这里为什么是ElectionMs/TickMs
+func (cfg Config) ElectionTicks() int { return int(cfg.ElectionMs / cfg.TickMs) }
+
 func updateCipherSuites(tls *transport.TLSInfo, ss []string) error {
 	if len(tls.CipherSuites) > 0 && len(ss) > 0 {
 		return fmt.Errorf("TLSInfo.CipherSuites is already specified (given %v)", ss)

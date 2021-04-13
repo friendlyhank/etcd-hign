@@ -1,7 +1,10 @@
 package raft
 
 import (
+	"math/rand"
 	"sort"
+	"sync"
+	"time"
 
 	"github.com/friendlyhank/etcd-hign/raftmodule/raft/confchange"
 
@@ -33,6 +36,25 @@ const (
 	campaignElection CampaignType = "CampaignElection"
 )
 
+// lockedRand is a small wrapper around rand.Rand to provide
+// synchronization among multiple raft groups. Only the methods needed
+// by the code are exposed (e.g. Intn).
+type lockedRand struct {
+	mu   sync.Mutex
+	rand *rand.Rand
+}
+
+func (r *lockedRand) Intn(n int) int {
+	r.mu.Lock()
+	v := r.rand.Intn(n)
+	r.mu.Unlock()
+	return v
+}
+
+var globalRand = &lockedRand{
+	rand: rand.New(rand.NewSource(time.Now().UnixNano())),
+}
+
 // CampaignType represents the type of campaigning
 // the reason we use the type of string instead of uint64
 // is because it's simpler to compare and fill in raft entries
@@ -46,6 +68,18 @@ type StateType uint64
 type Config struct {
 	// ID is the identity of the local raft. ID cannot be 0.
 	ID uint64
+
+	// ElectionTick is the number of Node.Tick invocations that must pass between
+	// elections. That is, if a follower does not receive any message from the
+	// leader of current term before ElectionTick has elapsed, it will become
+	// candidate and start an election. ElectionTick must be greater than
+	// HeartbeatTick. We suggest ElectionTick = 10 * HeartbeatTick to avoid
+	// unnecessary leader switching.
+	ElectionTick int //TODO HANK 重点研究下
+	// HeartbeatTick is the number of Node.Tick invocations that must pass between
+	// heartbeats. That is, a leader sends heartbeat messages to maintain its
+	// leadership every HeartbeatTick ticks.
+	HeartbeatTick int //TODO HANK 重点研究下
 
 	// PreVote enables the Pre-Vote algorithm described in raft thesis section
 	// 9.6. This prevents disruption when a node that has been partitioned away
@@ -68,7 +102,7 @@ type raft struct {
 	id uint64
 
 	Term uint64 //任期号
-	Vote uint64 //投票id号
+	Vote uint64 //当前节点已经投票的id
 
 	// TODO(tbg): rename to trk.
 	prs tracker.ProgressTracker //投票相关统计
@@ -81,7 +115,26 @@ type raft struct {
 	//领导者id
 	lead uint64
 
+	// number of ticks since it reached last electionTimeout when it is leader
+	// or candidate.
+	// number of ticks since it reached last electionTimeout or received a
+	// valid message from current leader when it is a follower.
+	electionElapsed int //选举时间摆钟,累加
+
+	// number of ticks since it reached last heartbeatTimeout.
+	// only leader keeps heartbeatElapsed.
+	heartbeatElapsed int //心跳时间摆钟,累加
+
 	preVote bool //是否需要预候选人
+
+	electionTimeout  int //选举超时,如果超时会触发新一轮选举
+	heartbeatTimeout int //心跳超时
+
+	// randomizedElectionTimeout is a random number between
+	// [electiontimeout, 2 * electiontimeout - 1]. It gets reset
+	// when raft changes its state to follower or candidate.
+	//带随机的选举超时,取值范围在[electiontimeout, 2 * electiontimeout - 1]
+	randomizedElectionTimeout int
 
 	tick func()   //选举时候需要定时执行的方法
 	step stepFunc //竞选的下一个步骤
@@ -94,9 +147,11 @@ func newRaft(c *Config) *raft {
 		panic(err.Error())
 	}
 	r := &raft{
-		id:     c.ID,
-		logger: c.Logger,
-		prs:    tracker.MakeProgressTracker(0),
+		id:               c.ID,
+		logger:           c.Logger,
+		prs:              tracker.MakeProgressTracker(0),
+		electionTimeout:  c.ElectionTick,
+		heartbeatTimeout: c.HeartbeatTick,
 	}
 	return r
 }
@@ -119,11 +174,18 @@ func (r *raft) reset(term uint64) {
 		r.Term = term
 	}
 	r.lead = None
+	r.electionElapsed = 0  //选举时间摆钟变为0
+	r.heartbeatElapsed = 0 //心跳时间摆钟变为0
+	r.resetRandomizedElectionTimeout()
 }
 
 //定时选举
 func (r *raft) tickElection() {
-	r.Step(pb.Message{From: r.id, Type: pb.MsgHup})
+	r.electionElapsed++ //每次定时选举的时间摆钟加一
+	if r.pastElectionTimeout() {
+		r.electionElapsed = 0
+		r.Step(pb.Message{From: r.id, Type: pb.MsgHup})
+	}
 }
 
 // tickHeartbeat is run by leaders to send a MsgBeat after r.heartbeatTimeout.
@@ -240,7 +302,7 @@ func (r *raft) poll(id uint64, t pb.MessageType, v bool) (granted int, rejected 
 	}
 	//记录票数
 	r.prs.RecordVote(id, v)
-	return
+	return r.prs.TallyVotes() //计算投票结果
 }
 
 //执行竞选的状态
@@ -255,17 +317,30 @@ func (r *raft) Step(m pb.Message) error {
 
 	case pb.MsgVote, pb.MsgPreVote:
 		// We can vote if this is a repeat of a vote we've already cast...
-
-		// When responding to Msg{Pre,}Vote messages we include the term
-		// from the message, not the local term. To see why, consider the
-		// case where a single node was previously partitioned away and
-		// it's local term is now out of date. If we include the local term
-		// (recall that for pre-votes we don't update the local term), the
-		// (pre-)campaigning node on the other end will proceed to ignore
-		// the message (it ignores all out of date messages).
-		// The term in the original message and current local term are the
-		// same in the case of regular votes, but different for pre-votes.
-		r.send(pb.Message{To: m.From, Term: m.Term, Type: voteRespMsgType(m.Type)})
+		canVote := r.Vote == m.From ||
+			(r.Vote == None && r.lead == None) ||
+			// ...or this is a PreVote for a future term...
+			(m.Type == pb.MsgPreVote && m.Term > r.Term)
+		if canVote {
+			// When responding to Msg{Pre,}Vote messages we include the term
+			// from the message, not the local term. To see why, consider the
+			// case where a single node was previously partitioned away and
+			// it's local term is now out of date. If we include the local term
+			// (recall that for pre-votes we don't update the local term), the
+			// (pre-)campaigning node on the other end will proceed to ignore
+			// the message (it ignores all out of date messages).
+			// The term in the original message and current local term are the
+			// same in the case of regular votes, but different for pre-votes.
+			r.send(pb.Message{To: m.From, Term: m.Term, Type: voteRespMsgType(m.Type)})
+			if m.Type == pb.MsgVote {
+				// Only record real votes.
+				r.electionElapsed = 0
+				r.Vote = m.From
+			}
+		} else {
+			//投反对票
+			r.send(pb.Message{To: m.From, Term: r.Term, Type: voteRespMsgType(m.Type), Reject: true})
+		}
 	default:
 		err := r.step(r, m)
 		if err != nil {
@@ -345,4 +420,17 @@ func (r *raft) switchToConfig(cfg tracker.Config, prs tracker.ProgressMap) pb.Co
 	r.prs.Config = cfg
 	r.prs.Progress = prs
 	return pb.ConfState{}
+}
+
+// pastElectionTimeout returns true iff r.electionElapsed is greater
+// than or equal to the randomized election timeout in
+// [electiontimeout, 2 * electiontimeout - 1].
+//判断选举是否超时，超时会触发新一轮选举
+func (r *raft) pastElectionTimeout() bool {
+	return r.electionElapsed >= r.randomizedElectionTimeout
+}
+
+//生成一个随机的选举超时数
+func (r *raft) resetRandomizedElectionTimeout() {
+	r.randomizedElectionTimeout = r.electionTimeout + globalRand.Intn(r.electionTimeout)
 }
