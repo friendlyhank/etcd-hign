@@ -172,6 +172,7 @@ func (r *raft) send(m pb.Message) {
 func (r *raft) reset(term uint64) {
 	if r.Term != term {
 		r.Term = term
+		r.Vote = None
 	}
 	r.lead = None
 	r.electionElapsed = 0  //选举时间摆钟变为0
@@ -210,7 +211,7 @@ func (r *raft) becomeCandidate() {
 	r.step = stepCandidate
 	r.reset(r.Term + 1)
 	r.tick = r.tickElection
-	r.Vote = r.id
+	r.Vote = r.id //候选人会默认投票给自己
 	r.state = StateCandidate
 	r.logger.Infof("%x became candidate at term %d", r.id, r.Term)
 }
@@ -307,8 +308,24 @@ func (r *raft) poll(id uint64, t pb.MessageType, v bool) (granted int, rejected 
 
 //执行竞选的状态
 func (r *raft) Step(m pb.Message) error {
+	// Handle the message term, which may result in our stepping down to a follower.
+	switch {
+	case m.Term > r.Term: //发送端的任期号要大于本地端
+		switch {
+		default:
+			//说明是领导者发送心跳的消息了,避免发送竞选,成为候选人
+			if m.Type == pb.MsgHeartbeat {
+				//设置任期号和领导者
+				r.becomeFollower(m.Term, m.From)
+			} else {
+				//这时候还没选出领导者,设置任期号
+				r.becomeFollower(m.Term, None)
+			}
+		}
+	}
+
 	switch m.Type {
-	case pb.MsgHup: //晋升成为候选人
+	case pb.MsgHup: //新一轮选举的时候竞选,晋升成为候选人
 		if r.preVote {
 			r.hup(campaignPreElection)
 		} else {
@@ -317,8 +334,8 @@ func (r *raft) Step(m pb.Message) error {
 
 	case pb.MsgVote, pb.MsgPreVote:
 		// We can vote if this is a repeat of a vote we've already cast...
-		canVote := r.Vote == m.From ||
-			(r.Vote == None && r.lead == None) ||
+		canVote := r.Vote == m.From || //这个条件也说明了成为了候选人之后是无法投票的，因为把票数投给了自己
+			(r.Vote == None && r.lead == None) || //一般为follower状态并且没有领导者可以发起投票
 			// ...or this is a PreVote for a future term...
 			(m.Type == pb.MsgPreVote && m.Term > r.Term)
 		if canVote {
