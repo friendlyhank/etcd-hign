@@ -53,6 +53,39 @@ func MakeProgressTracker(maxInflight int) ProgressTracker {
 	return p
 }
 
+func insertionSort(sl []uint64) {
+	a, b := 0, len(sl)
+	for i := a + 1; i < b; i++ {
+		for j := i; j > a && sl[j] < sl[j-1]; j-- {
+			sl[j], sl[j-1] = sl[j-1], sl[j]
+		}
+	}
+}
+
+// Visit invokes the supplied closure for all tracked progresses in stable order.
+func (p *ProgressTracker) Visit(f func(id uint64, pr *Progress)) {
+	n := len(p.Progress)
+	// We need to sort the IDs and don't want to allocate since this is hot code.
+	// The optimization here mirrors that in `(MajorityConfig).CommittedIndex`,
+	// see there for details.
+	//这是一个热门方法调用，经常用于广播消息，所以做了优化用数组,当数量大于7的时候才用切片
+	var sl [7]uint64
+	ids := sl[:]
+	if len(sl) >= n {
+		ids = sl[:n]
+	} else {
+		ids = make([]uint64, n)
+	}
+	for id := range p.Progress {
+		n--
+		ids[n] = id
+	}
+	insertionSort(ids)
+	for _, id := range ids {
+		f(id, p.Progress[id])
+	}
+}
+
 // RecordVote records that the node with the given id voted for this Raft
 // instance if v == true (and declined it otherwise).
 //记录投票

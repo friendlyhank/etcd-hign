@@ -35,15 +35,15 @@ message Snapshot {
 
 enum MessageType {
 	MsgHup             = 0;
-	MsgBeat            = 1;
+	MsgBeat            = 1;//领导者发送探活消息，会给所有的follower发送心跳消息
 	MsgProp            = 2;
 	MsgApp             = 3;
 	MsgAppResp         = 4;
 	MsgVote            = 5;//请求投票
 	MsgVoteResp        = 6;//MsgVote选举的响应消息
 	MsgSnap            = 7;
-	MsgHeartbeat       = 8;
-	MsgHeartbeatResp   = 9;
+	MsgHeartbeat       = 8;//心跳消息
+	MsgHeartbeatResp   = 9;//心跳响应消息
 	MsgUnreachable     = 10;//网络原因导致不可用
 	MsgSnapStatus      = 11;
 	MsgCheckQuorum     = 12;//检查是否又半数以上的连接

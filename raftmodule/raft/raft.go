@@ -166,6 +166,30 @@ func (r *raft) send(m pb.Message) {
 	r.msgs = append(r.msgs, m)
 }
 
+// sendHeartbeat sends a heartbeat RPC to the given peer.
+func (r *raft) sendHeartbeat(to uint64, ctx []byte) {
+	m := pb.Message{
+		To:   to,
+		Type: pb.MsgHeartbeat,
+	}
+	r.send(m)
+}
+
+// bcastHeartbeat sends RPC, without entries to all the peers.
+//广播心跳消息
+func (r *raft) bcastHeartbeat() {
+	r.bcastHeartbeatWithCtx(nil)
+}
+
+func (r *raft) bcastHeartbeatWithCtx(ctx []byte) {
+	r.prs.Visit(func(id uint64, _ *tracker.Progress) {
+		if id == r.id {
+			return
+		}
+		r.sendHeartbeat(id, ctx)
+	})
+}
+
 // maybeCommit attempts to advance the commit index. Returns true if
 // the commit index changed (in which case the caller should call
 // r.bcastAppend).
@@ -192,7 +216,17 @@ func (r *raft) tickElection() {
 // tickHeartbeat is run by leaders to send a MsgBeat after r.heartbeatTimeout.
 //成为领导者后发送心跳
 func (r *raft) tickHeartbeat() {
+	r.heartbeatElapsed++
+	r.electionElapsed++ //tickElection变为tickHeartbeat,所以还需要统计选举超时状况
 
+	if r.state != StateLeader {
+		return
+	}
+
+	if r.heartbeatElapsed >= r.heartbeatTimeout {
+		r.heartbeatElapsed++
+		r.Step(pb.Message{From: r.id, Type: pb.MsgBeat})
+	}
 }
 
 //初始化成为跟随着信息
@@ -352,7 +386,7 @@ func (r *raft) Step(m pb.Message) error {
 			if m.Type == pb.MsgVote {
 				// Only record real votes.
 				r.electionElapsed = 0
-				r.Vote = m.From
+				r.Vote = m.From //记录投票信息
 			}
 		} else {
 			//投反对票
@@ -370,6 +404,12 @@ func (r *raft) Step(m pb.Message) error {
 type stepFunc func(r *raft, m pb.Message) error
 
 func stepLeader(r *raft, m pb.Message) error {
+	// These message types do not require any progress for m.From.
+	switch m.Type {
+	case pb.MsgBeat: //接收到探活消息
+		r.bcastHeartbeat()
+		return nil
+	}
 	return nil
 }
 
@@ -407,6 +447,12 @@ func stepCandidate(r *raft, m pb.Message) error {
 }
 
 func stepFollower(r *raft, m pb.Message) error {
+	switch m.Type {
+	case pb.MsgHeartbeat:
+		r.electionElapsed = 0
+		r.lead = m.From
+		r.handleHeartbeat(m)
+	}
 	return nil
 }
 
@@ -450,4 +496,9 @@ func (r *raft) pastElectionTimeout() bool {
 //生成一个随机的选举超时数
 func (r *raft) resetRandomizedElectionTimeout() {
 	r.randomizedElectionTimeout = r.electionTimeout + globalRand.Intn(r.electionTimeout)
+}
+
+//响应心跳
+func (r *raft) handleHeartbeat(m pb.Message) {
+	r.send(pb.Message{To: m.From, Type: pb.MsgHeartbeatResp, Context: m.Context})
 }
