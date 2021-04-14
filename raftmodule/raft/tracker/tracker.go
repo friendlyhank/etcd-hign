@@ -63,6 +63,7 @@ func insertionSort(sl []uint64) {
 }
 
 // Visit invokes the supplied closure for all tracked progresses in stable order.
+//所有节点的访问并执行具体方法,通常用于广播
 func (p *ProgressTracker) Visit(f func(id uint64, pr *Progress)) {
 	n := len(p.Progress)
 	// We need to sort the IDs and don't want to allocate since this is hot code.
@@ -84,6 +85,18 @@ func (p *ProgressTracker) Visit(f func(id uint64, pr *Progress)) {
 	for _, id := range ids {
 		f(id, p.Progress[id])
 	}
+}
+
+// QuorumActive returns true if the quorum is active from the view of the local
+// raft state machine. Otherwise, it returns false.
+//检查半数以上的节点是否处于连接状态
+func (p *ProgressTracker) QuorumActive() bool {
+	votes := map[uint64]bool{}
+	p.Visit(func(id uint64, pr *Progress) {
+		votes[id] = pr.RecentActive
+	})
+
+	return p.Voters.VoteResult(votes) == quorum.VoteWon
 }
 
 // RecordVote records that the node with the given id voted for this Raft

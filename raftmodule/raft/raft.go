@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
@@ -130,6 +131,8 @@ type raft struct {
 	electionTimeout  int //选举超时,如果超时会触发新一轮选举
 	heartbeatTimeout int //心跳超时
 
+	checkQuorum bool //leader检查是否大多数节点处于活跃状态
+
 	// randomizedElectionTimeout is a random number between
 	// [electiontimeout, 2 * electiontimeout - 1]. It gets reset
 	// when raft changes its state to follower or candidate.
@@ -218,6 +221,15 @@ func (r *raft) tickElection() {
 func (r *raft) tickHeartbeat() {
 	r.heartbeatElapsed++
 	r.electionElapsed++ //tickElection变为tickHeartbeat,所以还需要统计选举超时状况
+
+	//选举时间摆钟大于选举超时的时候,leader会自查自身健康状况,检查发送心跳的节点是否还超过半数
+	//如果小于半数,说明leader节点接收follower心跳答复出现问题
+	if r.electionElapsed >= r.electionTimeout {
+		r.electionElapsed = 0
+		if r.checkQuorum {
+			r.Step(pb.Message{From: r.id, Type: pb.MsgCheckQuorum})
+		}
+	}
 
 	if r.state != StateLeader {
 		return
@@ -409,6 +421,30 @@ func stepLeader(r *raft, m pb.Message) error {
 	switch m.Type {
 	case pb.MsgBeat: //接收到探活消息
 		r.bcastHeartbeat()
+	case pb.MsgCheckQuorum:
+		// The leader should always see itself as active. As a precaution, handle
+		// the case in which the leader isn't in the configuration any more (for
+		// example if it just removed itself).
+		//
+		// TODO(tbg): I added a TODO in removeNode, it doesn't seem that the
+		// leader steps down when removing itself. I might be missing something.
+		//leader自身要设置处于活跃状态
+		if pr := r.prs.Progress[r.id]; pr != nil {
+			pr.RecentActive = true
+		}
+		//超过半数处于不活跃状态
+		if !r.prs.QuorumActive() {
+			r.logger.Warningf("%x stepped down to follower since quorum is not active", r.id)
+			r.becomeFollower(r.Term, None) //leader会变为follower
+		}
+		// Mark everyone (but ourselves) as inactive in preparation for the next
+		// CheckQuorum.
+		//设置所有节点连接处于不活跃状态，迎接新的领导者
+		r.prs.Visit(func(id uint64, pr *tracker.Progress) {
+			if id != r.id {
+				pr.RecentActive = false
+			}
+		})
 		return nil
 	}
 
@@ -421,6 +457,7 @@ func stepLeader(r *raft, m pb.Message) error {
 	}
 	switch m.Type {
 	case pb.MsgHeartbeatResp: //心跳的答复消息
+		fmt.Println("接收到心跳")
 	}
 	return nil
 }
@@ -461,6 +498,8 @@ func stepCandidate(r *raft, m pb.Message) error {
 func stepFollower(r *raft, m pb.Message) error {
 	switch m.Type {
 	case pb.MsgHeartbeat:
+		//如果follower长时间没收到心跳消息，
+		//就会假定Leader已经不存在或者发生了故障，于是会发起一次新的选举
 		r.electionElapsed = 0
 		r.lead = m.From
 		r.handleHeartbeat(m)
