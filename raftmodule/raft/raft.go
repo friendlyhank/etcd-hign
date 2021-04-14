@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
@@ -432,7 +431,7 @@ func stepLeader(r *raft, m pb.Message) error {
 		if pr := r.prs.Progress[r.id]; pr != nil {
 			pr.RecentActive = true
 		}
-		//超过半数处于不活跃状态
+		//超过半数处于不活跃状态(leader接收不到follower心跳答复)
 		if !r.prs.QuorumActive() {
 			r.logger.Warningf("%x stepped down to follower since quorum is not active", r.id)
 			r.becomeFollower(r.Term, None) //leader会变为follower
@@ -457,7 +456,7 @@ func stepLeader(r *raft, m pb.Message) error {
 	}
 	switch m.Type {
 	case pb.MsgHeartbeatResp: //心跳的答复消息
-		fmt.Println("接收到心跳")
+		pr.RecentActive = true
 	}
 	return nil
 }
