@@ -405,10 +405,22 @@ type stepFunc func(r *raft, m pb.Message) error
 
 func stepLeader(r *raft, m pb.Message) error {
 	// These message types do not require any progress for m.From.
+	//领导者接收自身的消息
 	switch m.Type {
 	case pb.MsgBeat: //接收到探活消息
 		r.bcastHeartbeat()
 		return nil
+	}
+
+	// All other message types require a progress for m.From (pr).
+	//领导者接收来自follower节点的消息
+	pr := r.prs.Progress[m.From]
+	if pr == nil {
+		r.logger.Debugf("%x no progress available for %x", r.id, m.From)
+		return nil
+	}
+	switch m.Type {
+	case pb.MsgHeartbeatResp: //心跳的答复消息
 	}
 	return nil
 }
