@@ -81,6 +81,11 @@ type Config struct {
 	// leadership every HeartbeatTick ticks.
 	HeartbeatTick int //TODO HANK 重点研究下
 
+	// CheckQuorum specifies if the leader should check quorum activity. Leader
+	// steps down when quorum is not active for an electionTimeout.
+	//领导者在选举达到超时的时候会检查连接的健康状况
+	CheckQuorum bool
+
 	// PreVote enables the Pre-Vote algorithm described in raft thesis section
 	// 9.6. This prevents disruption when a node that has been partitioned away
 	// rejoins the cluster.
@@ -154,6 +159,8 @@ func newRaft(c *Config) *raft {
 		prs:              tracker.MakeProgressTracker(0),
 		electionTimeout:  c.ElectionTick,
 		heartbeatTimeout: c.HeartbeatTick,
+		checkQuorum:      c.CheckQuorum,
+		preVote:          c.PreVote,
 	}
 	return r
 }
@@ -497,7 +504,7 @@ func stepCandidate(r *raft, m pb.Message) error {
 func stepFollower(r *raft, m pb.Message) error {
 	switch m.Type {
 	case pb.MsgHeartbeat:
-		//如果follower长时间没收到心跳消息，
+		//如果follower长时间没收到领导者发送的心跳消息，
 		//就会假定Leader已经不存在或者发生了故障，于是会发起一次新的选举
 		r.electionElapsed = 0
 		r.lead = m.From

@@ -114,6 +114,7 @@ func startNode(cfg ServerConfig, cl *membership.RaftCluster, ids []types.ID) (id
 		ID:            uint64(id),
 		ElectionTick:  cfg.ElectionTicks,
 		HeartbeatTick: 1,
+		CheckQuorum:   true,
 		PreVote:       cfg.PreVote,
 	}
 
