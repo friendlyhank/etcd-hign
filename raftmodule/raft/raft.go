@@ -141,6 +141,7 @@ type raft struct {
 	// [electiontimeout, 2 * electiontimeout - 1]. It gets reset
 	// when raft changes its state to follower or candidate.
 	//带随机的选举超时,取值范围在[electiontimeout, 2 * electiontimeout - 1]
+	//采用随机选举超时防止选票被均分(无法选出领导者)无休止的循环选举
 	randomizedElectionTimeout int
 
 	tick func()   //选举时候需要定时执行的方法
@@ -241,6 +242,7 @@ func (r *raft) tickHeartbeat() {
 		return
 	}
 
+	//心跳时间摆钟大于心跳超时的时候，会发送探活消息给节点广播心跳消息
 	if r.heartbeatElapsed >= r.heartbeatTimeout {
 		r.heartbeatElapsed++
 		r.Step(pb.Message{From: r.id, Type: pb.MsgBeat})
